@@ -9,8 +9,8 @@ node {
    	cd $PWD@script/;
       mvn versions:set -DnewVersion=$BRANCH_NAME
 	   mvn clean package
-      tar uf target/platform-testing-cdh-$BRANCH_NAME.jar BRANCH_NAME
-      tar uf target/platform-testing-general-$BRANCH_NAME.jar BRANCH_NAME
+      tar uf target/platform-testing-cdh-$BRANCH_NAME.jar 
+      tar uf target/platform-testing-general-$BRANCH_NAME.jar 
 	'''
 
    stage 'Test'
