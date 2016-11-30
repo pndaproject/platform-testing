@@ -255,13 +255,6 @@ class KafkaWhitebox(PndaPlugin):
                                           'kafka.brokers.%d.controllerstats.LeaderElectionRateAndTimeMs.%s' %
                                           (broker_id, jmx_data), [], response.text))
 
-                if jmx_data == "Count":
-                    if response.text != "0":
-                        self.whitebox_error_code = 103
-                elif jmx_data not in ["EventType", "LatencyUnit", "RateUnit"]:
-                    if response.text != "0.0":
-                        self.whitebox_error_code = 103
-
             else:
                 LOGGER.error("ERROR for url_jmxproxy: %s", url_jmxproxy)
 
@@ -494,12 +487,6 @@ class KafkaWhitebox(PndaPlugin):
                     analyse_status = MonitorStatus["amber"]
                 analyse_causes.append(
                     "ActiveControllerCount only one broker in the cluster should have 1")
-            elif self.whitebox_error_code == 103:
-                LOGGER.warn("analyse_results : Leader election rate, should be 0")
-                if analyse_status != MonitorStatus["red"]:
-                    analyse_status = MonitorStatus["amber"]
-                analyse_causes.append(
-                    "Unclean leader election rate, should be 0")
             elif self.whitebox_error_code == 104:
                 LOGGER.warn("analyse_results : Unclean leader election rate, should be 0")
                 if analyse_status != MonitorStatus["red"]:
