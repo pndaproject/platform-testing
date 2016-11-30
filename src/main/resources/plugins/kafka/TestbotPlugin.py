@@ -188,7 +188,7 @@ class KafkaWhitebox(PndaPlugin):
                                       'kafka',
                                       'kafka.brokers.%d.UnderReplicatedPartitions' %
                                       broker_id, [], response.text))
-            if response.text != 0:
+            if response.text != "0":
                 self.whitebox_error_code = 101
 
         else:
