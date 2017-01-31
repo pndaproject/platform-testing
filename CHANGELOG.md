@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+## Changed
+- PNDA-2672: Explicitly specify usage of CM API version 11
+
 ## [0.3.0] 2017-01-20
 ### Changed
 - PNDA-2485: Pinned all python libraries to strict version numbers
