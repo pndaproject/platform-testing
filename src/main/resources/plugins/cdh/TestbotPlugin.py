@@ -93,7 +93,8 @@ class CDHPlugin(PndaPlugin):
         api = ApiResource(server_host=options.cmhost,
                           server_port=options.cmport,
                           username=options.cmuser,
-                          password=options.cmpassword)
+                          password=options.cmpassword,
+                          version=11)
 
         def fetch(key, query):
             '''

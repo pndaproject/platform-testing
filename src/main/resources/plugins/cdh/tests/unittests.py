@@ -62,7 +62,7 @@ class TestCDHPlugin(unittest.TestCase):
                                 "--cmuser user --cmpassword password"), True)
 
         api_mock.assert_called_with(password='password', server_host='7777',
-                                    server_port='7180', username='user')
+                                    server_port='7180', username='user', version=11)
         self.assertEqual(14, len(values))
         self.assertEqual(values[0].source, 'hdfs01')
         self.assertEqual(values[0].metric, 'hadoop.HDFS.jvm_heap_used_mb')
@@ -84,7 +84,7 @@ class TestCDHPlugin(unittest.TestCase):
                                 "--cmuser user --cmpassword password"), True)
 
         api_mock.assert_called_with(password='password', server_host='7777',
-                                    server_port='7180', username='user')
+                                    server_port='7180', username='user', version=11)
         self.assertEqual(values, [])
 
 if __name__ == '__main__':

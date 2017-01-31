@@ -78,7 +78,8 @@ class CDHBlackboxPlugin(PndaPlugin):
         api = ApiResource(server_host=options.cmhost, \
                           server_port=options.cmport, \
                           username=options.cmuser, \
-                          password=options.cmpassword)
+                          password=options.cmpassword, \
+                          version=11)
 
         cluster = api.get_cluster(api.get_all_clusters()[0].name)
         cdh = CDHData(api, cluster)

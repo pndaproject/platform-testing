@@ -73,7 +73,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
                                 "--cmuser user --cmpassword password"), True)
 
         api_mock.assert_called_with(password='password', server_host='7777',
-                                    server_port='7180', username='user')
+                                    server_port='7180', username='user', version=11)
 
         num_res = [('hbase01', 'hadoop.HBASE.create_table_time_ms', [], 5),
                    ('hbase01', 'hadoop.HBASE.write_time_ms', [], 7),
@@ -165,7 +165,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
                                 "--cmuser user --cmpassword password"), True)
 
         api_mock.assert_called_with(password='password', server_host='7777',
-                                    server_port='7180', username='user')
+                                    server_port='7180', username='user', version=11)
 
         for value in values:
             if value.metric == 'hadoop.HDFS.health':
