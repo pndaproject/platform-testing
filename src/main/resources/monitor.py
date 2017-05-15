@@ -111,9 +111,11 @@ class TestbotCollector(object):
         '''
 
         LOGGER.debug("_send started")
+            
 
         if len(events) > 0:
-            json_data = {
+          
+            json_datas = [{
                 "data": [(lambda ev: {
                     "source": "%s" % ev.source,
                     "metric": "%s" % ev.metric,
@@ -122,16 +124,32 @@ class TestbotCollector(object):
                     "timestamp": ev.timestamp
                     })(ev) for ev in events],
                 "timestamp": TIMESTAMP_MILLIS()
-            }
+            }]
+
+            # 100kB limit from nodjs body parser https://github.com/expressjs/body-parser#limit-3
+            if len(json.dumps(json_datas[0])) > 102400:
+                json_datas = [{
+                    "data": [{
+                        "source": "%s" % ev.source,
+                        "metric": "%s" % ev.metric,
+                        "value": ev.value,
+                        "causes": "%s" % json.dumps(ev.causes),
+                        "timestamp": ev.timestamp
+                    }],
+                    "timestamp": TIMESTAMP_MILLIS()
+                } for ev in events]     
 
             headers = {'Content-Type': 'application/json', 'Connection':'close'}
+            for json_data in json_datas:
 
-            LOGGER.debug("_send data \n %s", json_data)
+                LOGGER.debug("_send data \n %s", json_data)
 
-            try:
-                requests.post(self._options.postjson, data=json.dumps(json_data), headers=headers)
-            except requests.exceptions.RequestException as ex:
-                LOGGER.error("_send failed: %s", ex)
+                try:
+                    response = requests.post(self._options.postjson, data=json.dumps(json_data), headers=headers)
+                    if response.status_code != 200:
+                            LOGGER.error("_send failed: %s", response.status_code)
+                except requests.exceptions.RequestException as ex:
+                    LOGGER.error("_send failed: %s", ex)
         else:
             LOGGER.debug("_send - no events to send")
 
@@ -142,3 +160,4 @@ if __name__ == '__main__':
 
     TestbotCollector(read_args()).runner()
     sys.exit(0)
+
