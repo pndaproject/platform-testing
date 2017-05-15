@@ -129,7 +129,9 @@ class TestbotCollector(object):
             LOGGER.debug("_send data \n %s", json_data)
 
             try:
-                requests.post(self._options.postjson, data=json.dumps(json_data), headers=headers)
+                req = requests.post(self._options.postjson, data=json.dumps(json_data), headers=headers)
+                if req.status_code != 200:
+                    LOGGER.error("_send failed: HTTP "+str(req.status_code)+" - "+req.text)
             except requests.exceptions.RequestException as ex:
                 LOGGER.error("_send failed: %s", ex)
         else:
