@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 
 ## Fixed
 - PNDA-2597: Delete HBase folder from HDFS when blackbox test fails as part of cleanup to cope with HBase errors.
+- PNDA-2941: quick fix on monitor.py to catch error once send data to backend logger
 
 ## [0.3.0] 2017-01-20
 ### Changed
