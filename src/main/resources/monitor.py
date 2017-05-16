@@ -110,7 +110,7 @@ class TestbotCollector(object):
         '''
 
         LOGGER.debug("_send started")
-        
+
         if len(events) > 0:
           
             json_datas = [{
