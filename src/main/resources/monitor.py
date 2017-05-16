@@ -104,15 +104,13 @@ class TestbotCollector(object):
 
             LOGGER.debug('Plugin %s finished', self._options.plugin)
 
-
     def _send(self, events):
         '''
         Send all the events in one pass in one payload
         '''
 
         LOGGER.debug("_send started")
-            
-
+        
         if len(events) > 0:
           
             json_datas = [{
