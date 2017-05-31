@@ -112,7 +112,7 @@ class TestbotCollector(object):
         LOGGER.debug("_send started")
 
         if len(events) > 0:
-          
+
             json_datas = [{
                 "data": [(lambda ev: {
                     "source": "%s" % ev.source,
@@ -135,7 +135,7 @@ class TestbotCollector(object):
                         "timestamp": ev.timestamp
                     }],
                     "timestamp": TIMESTAMP_MILLIS()
-                } for ev in events]     
+                } for ev in events]
 
             headers = {'Content-Type': 'application/json', 'Connection':'close'}
             for json_data in json_datas:
@@ -158,4 +158,3 @@ if __name__ == '__main__':
 
     TestbotCollector(read_args()).runner()
     sys.exit(0)
-

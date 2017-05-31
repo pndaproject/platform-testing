@@ -32,7 +32,7 @@ from cm_api.api_client import ApiResource
 
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event
-from plugins.cdh_blackbox.cm_health import CDHData
+from plugins.cdh_blackbox.cm_health import CDHData, HDPData
 
 LOGGER = logging.getLogger("TestbotPlugin")
 
@@ -62,6 +62,7 @@ class CDHBlackboxPlugin(PndaPlugin):
         parser.add_argument('--hbaseport', default=20550, help='HBase port e.g. 20550')
         parser.add_argument('--hiveport', default=10000, help='Hive port e.g. 10000')
         parser.add_argument('--impalaport', default=21050, help='Impala port e.g. 21050')
+        parser.add_argument('--hadoopdistro', default='CDH', help='Hadoop distro e.g. CDH/HDP')
 
         return parser.parse_args(args)
 
@@ -75,14 +76,17 @@ class CDHBlackboxPlugin(PndaPlugin):
 
         options = self.read_args(plugin_args)
 
-        api = ApiResource(server_host=options.cmhost, \
-                          server_port=options.cmport, \
-                          username=options.cmuser, \
-                          password=options.cmpassword, \
-                          version=11)
+        if options.hadoopdistro == 'CDH':
+            api = ApiResource(server_host=options.cmhost, \
+                            server_port=options.cmport, \
+                            username=options.cmuser, \
+                            password=options.cmpassword, \
+                            version=11)
 
-        cluster = api.get_cluster(api.get_all_clusters()[0].name)
-        cdh = CDHData(api, cluster)
+            cluster = api.get_cluster(api.get_all_clusters()[0].name)
+            cdh = CDHData(api, cluster)
+        else:
+            cdh = HDPData(options.cmhost, options.cmuser, options.cmpassword)
 
         def run_test_sequence():
             # pylint: disable=too-many-return-statements
@@ -233,54 +237,57 @@ class CDHBlackboxPlugin(PndaPlugin):
             #read some data via impala using it
             if abort_test_sequence is True:
                 return
-            reason = []
-            try:
-                start = TIMESTAMP_MILLIS()
-                impala = connect(host=cdh.get_impala_endpoint(), port=options.impalaport)
-                end = TIMESTAMP_MILLIS()
-                impala.cursor().execute("invalidate metadata")
-                connect_to_impala_ms = end-start
-                connect_to_impala_ok = True
-                values.append(Event(TIMESTAMP_MILLIS(),
-                                    cdh.get_name('IMPALA'),
-                                    "hadoop.IMPALA.connection_time_ms",
-                                    [],
-                                    connect_to_impala_ms))
-            except:
-                LOGGER.error(traceback.format_exc())
-                connect_to_impala_ok = False
-                reason = ['Failed to connect to Impala']
-            health_values.append(Event(TIMESTAMP_MILLIS(),
-                                       cdh.get_name('IMPALA'),
-                                       "hadoop.IMPALA.connection_succeeded",
-                                       reason,
-                                       connect_to_impala_ok))
 
-            if abort_test_sequence is True:
-                return
-            reason = []
-            try:
-                start = TIMESTAMP_MILLIS()
-                impala_cursor = impala.cursor()
-                impala_cursor.execute("SELECT * FROM blackbox_test_table")
-                table_contents = impala_cursor.fetchall()
-                end = TIMESTAMP_MILLIS()
-                read_impala_ms = end-start
-                read_impala_ok = table_contents[0][1] == 'value'
-                values.append(Event(TIMESTAMP_MILLIS(),
-                                    cdh.get_name('IMPALA'),
-                                    "hadoop.IMPALA.read_time_ms",
-                                    [],
-                                    read_impala_ms))
-            except:
-                LOGGER.error(traceback.format_exc())
-                read_impala_ok = False
-                reason = ['Failed to SELECT from Impala']
-            health_values.append(Event(TIMESTAMP_MILLIS(),
-                                       cdh.get_name('IMPALA'),
-                                       "hadoop.IMPALA.read_succeeded",
-                                       reason,
-                                       read_impala_ok))
+            if cdh.get_impala_endpoint() is not None:
+                reason = []
+                try:
+                    start = TIMESTAMP_MILLIS()
+                    impala = connect(host=cdh.get_impala_endpoint(), port=options.impalaport)
+                    end = TIMESTAMP_MILLIS()
+                    impala.cursor().execute("invalidate metadata")
+                    connect_to_impala_ms = end-start
+                    connect_to_impala_ok = True
+                    values.append(Event(TIMESTAMP_MILLIS(),
+                                        cdh.get_name('IMPALA'),
+                                        "hadoop.IMPALA.connection_time_ms",
+                                        [],
+                                        connect_to_impala_ms))
+                except:
+                    LOGGER.error(traceback.format_exc())
+                    connect_to_impala_ok = False
+                    reason = ['Failed to connect to Impala']
+                health_values.append(Event(TIMESTAMP_MILLIS(),
+                                           cdh.get_name('IMPALA'),
+                                           "hadoop.IMPALA.connection_succeeded",
+                                           reason,
+                                           connect_to_impala_ok))
+
+                if abort_test_sequence is True:
+                    return
+                reason = []
+                try:
+                    start = TIMESTAMP_MILLIS()
+                    impala_cursor = impala.cursor()
+                    impala_cursor.execute("SELECT * FROM blackbox_test_table")
+                    table_contents = impala_cursor.fetchall()
+                    end = TIMESTAMP_MILLIS()
+                    read_impala_ms = end-start
+                    read_impala_ok = table_contents[0][1] == 'value'
+                    values.append(Event(TIMESTAMP_MILLIS(),
+                                        cdh.get_name('IMPALA'),
+                                        "hadoop.IMPALA.read_time_ms",
+                                        [],
+                                        read_impala_ms))
+                except:
+                    LOGGER.error(traceback.format_exc())
+                    read_impala_ok = False
+                    reason = ['Failed to SELECT from Impala']
+                health_values.append(Event(TIMESTAMP_MILLIS(),
+                                           cdh.get_name('IMPALA'),
+                                           "hadoop.IMPALA.read_succeeded",
+                                           reason,
+                                           read_impala_ok))
+            #else: do a SELECT with hive
 
             #delete metadata
             if abort_test_sequence is True:
@@ -377,10 +384,11 @@ class CDHBlackboxPlugin(PndaPlugin):
             failed_step = "connect to Hive Metastore"
         if default_health_value("hadoop.HIVE.create_metadata_succeeded", "HIVE", "create Hive Metastore table", failed_step) and failed_step is None:
             failed_step = "create Hive Metastore table"
-        if default_health_value("hadoop.IMPALA.connection_succeeded", "IMPALA", "connect to Impala", failed_step) and failed_step is None:
-            failed_step = "connect to Impala"
-        if default_health_value("hadoop.IMPALA.read_succeeded", "IMPALA", "SELECT from Impala", failed_step) and failed_step is None:
-            failed_step = "SELECT from Impala"
+        if cdh.get_impala_endpoint() is not None:
+            if default_health_value("hadoop.IMPALA.connection_succeeded", "IMPALA", "connect to Impala", failed_step) and failed_step is None:
+                failed_step = "connect to Impala"
+            if default_health_value("hadoop.IMPALA.read_succeeded", "IMPALA", "SELECT from Impala", failed_step) and failed_step is None:
+                failed_step = "SELECT from Impala"
         if default_health_value("hadoop.HIVE.drop_table_succeeded", "HIVE", "DROP table in Hive Metastore", failed_step) and failed_step is None:
             failed_step = "DROP table in Hive Metastore"
         if default_health_value("hadoop.HBASE.drop_table_succeeded", "HBASE", "drop table in HBase", failed_step) and failed_step is None:
