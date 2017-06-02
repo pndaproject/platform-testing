@@ -25,7 +25,8 @@ import traceback
 import subprocess
 
 import starbase
-import pyhs2
+from pyhive import hive as hive_api
+from TCLIService.ttypes import TOperationState
 
 from impala.dbapi import connect
 from cm_api.api_client import ApiResource
@@ -180,12 +181,7 @@ class CDHBlackboxPlugin(PndaPlugin):
                 return
             try:
                 start = TIMESTAMP_MILLIS()
-                hive = pyhs2.connect(host=cdh.get_hive_endpoint(),
-                                     port=options.hiveport,
-                                     authMechanism="PLAIN",
-                                     user='hdfs',
-                                     password='test',
-                                     database='default')
+                hive = hive_api.connect(cdh.get_hive_endpoint())
                 end = TIMESTAMP_MILLIS()
                 hive.cursor().execute("DROP TABLE blackbox_test_table")
                 connect_to_hive_ms = end-start
