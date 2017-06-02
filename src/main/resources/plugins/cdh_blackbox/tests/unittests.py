@@ -33,7 +33,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
     '''
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.ApiResource')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.starbase.Connection')
-    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.pyhs2')
+    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.hive_api')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.connect')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_name',
                 lambda s, x: {'HBASE': 'hbase01', 'IMPALA': 'impala01', 'HIVE': 'hive01'}[x])
@@ -117,7 +117,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
 
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.ApiResource')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.starbase.Connection')
-    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.pyhs2')
+    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.hive_api')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.connect')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_name',
                 lambda s, x: {'HBASE': 'hbase01', 'IMPALA': 'impala01',
