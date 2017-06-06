@@ -9,6 +9,7 @@
             <outputDirectory>/</outputDirectory>
             <includes>
                 <include>plugins/cdh*/**</include>
+                <include>plugins/hdp*/**</include>
                 <include>plugins/__init__*</include>
                 <include>*</include>
             </includes>
