@@ -1,6 +1,10 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Added
+- PNDA-2445: Support for Hortonworks HDP hadoop distro
+
 ## [0.3.1] 2017-06-28
 ### Changed
 - PNDA-2672: Explicitly specify usage of CM API version 11
