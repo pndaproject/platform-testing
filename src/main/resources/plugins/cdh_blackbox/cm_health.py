@@ -210,6 +210,8 @@ class HDPData(HadoopData):
         cluster_uri = requests.get('%s/clusters' % self._ambari_api, auth=self._http_auth, headers=self._http_headers).json()['items'][0]['href']
 
         services = requests.get('%s/services' % cluster_uri, auth=self._http_auth, headers=self._http_headers).json()['items']
+        self._metadata['names']['HQUERY'] = 'HQUERY'
+        self._metadata['types']['HQUERY'] = 'HQUERY'
         for service_item in services:
 
             service = requests.get(service_item['href'], auth=self._http_auth, headers=self._http_headers).json()

@@ -283,7 +283,30 @@ class CDHBlackboxPlugin(PndaPlugin):
                                            "hadoop.IMPALA.read_succeeded",
                                            reason,
                                            read_impala_ok))
-            #else: do a SELECT with hive
+            else:
+                reason = []
+                try:
+                    start = TIMESTAMP_MILLIS()
+                    hive_cursor = hive.cursor()
+                    hive_cursor.execute("SELECT * FROM blackbox_test_table")
+                    table_contents = hive_cursor.fetchall()
+                    end = TIMESTAMP_MILLIS()
+                    read_hive_ms = end-start
+                    read_hive_ok = table_contents[0][1] == 'value'
+                    values.append(Event(TIMESTAMP_MILLIS(),
+                                        cdh.get_name('HQUERY'),
+                                        "hadoop.HQUERY.read_time_ms",
+                                        [],
+                                        read_hive_ms))
+                except:
+                    LOGGER.error(traceback.format_exc())
+                    read_hive_ok = False
+                    reason = ['Failed to SELECT from Hive']
+                health_values.append(Event(TIMESTAMP_MILLIS(),
+                                           cdh.get_name('HQUERY'),
+                                           "hadoop.HQUERY.read_succeeded",
+                                           reason,
+                                           read_hive_ok))
 
             #delete metadata
             if abort_test_sequence is True:
@@ -385,6 +408,9 @@ class CDHBlackboxPlugin(PndaPlugin):
                 failed_step = "connect to Impala"
             if default_health_value("hadoop.IMPALA.read_succeeded", "IMPALA", "SELECT from Impala", failed_step) and failed_step is None:
                 failed_step = "SELECT from Impala"
+        else:
+            if default_health_value("hadoop.HQUERY.read_succeeded", "HQUERY", "SELECT from Hive", failed_step) and failed_step is None:
+                failed_step = "SELECT from Hive"
         if default_health_value("hadoop.HIVE.drop_table_succeeded", "HIVE", "DROP table in Hive Metastore", failed_step) and failed_step is None:
             failed_step = "DROP table in Hive Metastore"
         if default_health_value("hadoop.HBASE.drop_table_succeeded", "HBASE", "drop table in HBase", failed_step) and failed_step is None:
