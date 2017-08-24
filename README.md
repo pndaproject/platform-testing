@@ -160,3 +160,21 @@ Arguments to **--extra**:
 Example:
 
 	--zconnect 127.0.0.1:2181,127.0.0.1:2182 --prod2cons
+
+## OpenTSDB
+
+The whitebox test on OpenTSDB monitors health of all OpenTSDB nodes by getting stats from api/stats URL and performing write, read and delete operations for each node. For more information on OpenTSDB stats visit [STATS APIs](http://opentsdb.net/docs/build/html/api_http/stats/index.html).
+
+Argument to **--plugin**:
+
+- **opentsdb**
+
+Arguments to **--extra**:
+
+- **--hosts**: connection string for OpenTSDB nodes
+
+Example:
+
+	--hosts 127.0.0.1:4242,127.0.0.1:4241
+
+
