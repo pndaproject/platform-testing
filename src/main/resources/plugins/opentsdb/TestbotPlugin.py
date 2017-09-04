@@ -10,9 +10,7 @@ import requests
 
 from prettytable import PrettyTable
 from requests.utils import quote
-from pnda_plugin import PndaPlugin
-from pnda_plugin import Event
-from pnda_plugin import MonitorStatus
+from pnda_plugin import PndaPlugin, Event, MonitorStatus
 
 #Constants
 METRIC_NAME = "tsd.host"
@@ -281,6 +279,17 @@ class OpenTSDBWhiteBox(PndaPlugin):
         [], ok_c))
         self.results.append(Event(self.test_start_timestamp, "opentsdb", "tsd.hosts.ko", \
         [], ko_c))
+        cause = None
+        if ko_c == 0:
+            overall_status = MonitorStatus["green"]
+        else:
+            cause = ko_c
+            if ok_c == 0:
+                overall_status = MonitorStatus["red"]
+            else:
+                overall_status = MonitorStatus["amber"]
+        self.results.append(Event(self.test_start_timestamp, "opentsdb", "%s.%s" % \
+        (METRIC_NAME, "health"), cause, overall_status))
         LOGGER.debug("Overall test on all host finished")
         return self.results
 
@@ -345,4 +354,3 @@ class OpenTSDBWhiteBox(PndaPlugin):
         if display:
             self.do_display(results, options.hosts)
         return results
-
