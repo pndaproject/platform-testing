@@ -32,6 +32,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
     def __init__(self):
         self.hosts = []
         self.results = []
+        self.cause = []
         self.test_start_timestamp = None
 
     def read_args(self, args):
@@ -50,6 +51,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
         metric = "%s.%d.%s" % (METRIC_NAME, index, operation)
         self.results.append(Event(TIMESTAMP_MILLIS(), "opentsdb", metric, msg, status))
         if status == "0":
+            self.cause.extend(msg)
             metric = "%s.%d.%s" % (METRIC_NAME, index, "health")
             analyse_status = MonitorStatus["red"]
             self.results.append(Event(TIMESTAMP_MILLIS(), "opentsdb", metric, msg, analyse_status))
@@ -279,17 +281,15 @@ class OpenTSDBWhiteBox(PndaPlugin):
         [], ok_c))
         self.results.append(Event(self.test_start_timestamp, "opentsdb", "tsd.hosts.ko", \
         [], ko_c))
-        cause = None
         if ko_c == 0:
             overall_status = MonitorStatus["green"]
         else:
-            cause = ko_c
             if ok_c == 0:
                 overall_status = MonitorStatus["red"]
             else:
                 overall_status = MonitorStatus["amber"]
         self.results.append(Event(self.test_start_timestamp, "opentsdb", "%s.%s" % \
-        ("opentsdb", "health"), cause, overall_status))
+        ("opentsdb", "health"), self.cause, overall_status))
         LOGGER.debug("Overall test on all host finished")
         return self.results
 
@@ -300,11 +300,12 @@ class OpenTSDBWhiteBox(PndaPlugin):
         ok_c = 0
         ko_c = 0
         for row in results:
-            if ".health" in row[2]:
-                if row[4] == "ERROR":
-                    ko_c += 1
-                else:
-                    ok_c += 1
+            if "opentsdb.health" not in row[2]:
+		if ".health" in row[2]:
+		    if row[4] == "ERROR":
+			ko_c += 1
+		    else:
+			ok_c += 1
         return ok_c, ko_c
 
     def do_display(self, results, hosts):

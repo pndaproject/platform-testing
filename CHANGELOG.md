@@ -3,6 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
+- PNDA-ISSUE-42: opentsdb platform test to return empty list in causes field for good health in opentsdb.health metric
 - PNDA-2445: Support for Hortonworks HDP hadoop distro
 - PNDA-2163: Support for OpenTSDB Platform testing
 - PNDA-3381: Support for multiple Kafka endpoints
