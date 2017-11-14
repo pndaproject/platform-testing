@@ -201,6 +201,9 @@ class HDPData(HadoopData):
                 service_type = 'SPARK_ON_YARN'
             elif service_name == 'AMBARI':
                 service_type = 'CLUSTER_MANAGER'
+            elif service_name == 'AMBARI_METRICS':
+                service_name = 'AMBARI'
+                service_type = 'CLUSTER_MANAGER'
             else:
                 service_type = service_name
 
