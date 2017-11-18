@@ -26,7 +26,9 @@ import time
 import argparse
 import sys
 import os
+import os.path
 import logging
+import datetime
 
 import requests
 
@@ -36,6 +38,7 @@ from plugins.common.zkclient import ZkClient, ZkError
 from plugins.kafka.prod2cons import Prod2Cons
 from plugins.common.defcom import MonitorSummary, PartitionState, TestbotResult
 from plugins.common.defcom import ZkNodesHealth, ZkNode, KkBroker
+from plugins.kafka.master_dataset import check_dataset, get_name_node, check_dataset_dir, check_quarantine_dir
 
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event
@@ -61,6 +64,7 @@ class ProcessorError(Exception):
     def __str__(self):
         return self.msg
 
+
 class KafkaWhitebox(PndaPlugin):
     '''
     Whitebox test plugin for Kafka
@@ -81,6 +85,8 @@ class KafkaWhitebox(PndaPlugin):
         self.whitebox_error_code = -1
         self.activecontrollercount = -1
         self.unclean_threshold = 0.0002
+        self.cluster_name = None
+        self.data_service_ip = None
 
     def read_args(self, args):
         '''
@@ -100,6 +106,8 @@ class KafkaWhitebox(PndaPlugin):
                             'zk host (default: localhost:2181)')
         parser.add_argument('--prod2cons', action='store_const', const=True,
                             help='Run a producer/consumer test')
+        parser.add_argument('--data_service', default='http://10.0.1.20:7000', help='DATA_SERVICE IP ADDRESS')
+        parser.add_argument('--cluster_name', default='cluster', help = "PNDA CLUSTER NAME")
         return parser.parse_args(args)
 
     def get_brokertopicmetrics(self, host, topic, broker_id):
@@ -509,6 +517,44 @@ class KafkaWhitebox(PndaPlugin):
             TIMESTAMP_MILLIS(), 'kafka', \
             analyse_metric, analyse_causes, analyse_status)
 
+    def analyse_dataset_health(self):
+        '''
+        Analyse the dataset health
+        Then set the the test result flag accordingly
+        I the test flag is not green, put a reason explaining why
+        Then return a json
+        '''
+        analyse_status = MonitorStatus["green"]
+        analyse_causes = []
+        analyse_metric = 'dataset.health'
+
+        # Check whether dataset has been created or not
+        if not check_dataset(self.data_service_ip):
+            LOGGER.error("Couldn't find any dataset that has been created")
+            analyse_status = MonitorStatus["red"]
+            analyse_causes.append("DATASET NOT FOUND")
+            return Event(TIMESTAMP_MILLIS(), 'master-dataset', analyse_metric, analyse_causes, analyse_status)
+
+        # Get NAME_NODE_IP to get status of HDFS directory/files
+        if not get_name_node(self.cluster_name):
+            LOGGER.error("Couldn't get any IP address of namenode where webhdfs is running")
+            analyse_status = MonitorStatus["red"]
+            analyse_causes.append("NAME NODE IP ADDRESS NOT FOUND")
+            return Event(TIMESTAMP_MILLIS(), 'master-dataset', analyse_metric, analyse_causes, analyse_status)
+
+        # Check whether dataset has been modified recently with latest data and also if the data matches
+        if not check_dataset_dir():
+            LOGGER.error("DATASET DIRECTORY hasn't been modified recently")
+            analyse_status = MonitorStatus["red"]
+            analyse_causes.append("FOUND THAT DATASET DIRECTORY HASN'T BEEN MODIFIED RECENTLY")
+
+        # Check whether quarantine dataset has been modified recently with latest data and also if data matches
+        if not check_quarantine_dir():
+            LOGGER.error("QUARANTINE DIRECTORY hasn't been modified recently")
+            analyse_status = MonitorStatus["red"]
+            analyse_causes.append("FOUND THAT QUARANTINE DIRECTORY HASN'T BEEN MODIFIED RECENTLY")
+        return Event(TIMESTAMP_MILLIS(), 'master-dataset', analyse_metric, analyse_causes, analyse_status)
+
     def process_brokers(self):
         '''
         Process the brokers
@@ -589,6 +635,8 @@ class KafkaWhitebox(PndaPlugin):
         self.broker_list = options.brokerlist.split(",")
         self.zk_list = options.zkconnect.split(",")
         self.prod2cons = options.prod2cons
+        self.cluster_name = options.cluster_name.split(",")[0]
+        self.data_service_ip = options.data_service.split(",")[0]
 
         zknodes = self.getzknodes(options.zkconnect)
         LOGGER.debug(zknodes)
@@ -669,6 +717,41 @@ class KafkaWhitebox(PndaPlugin):
 
         results_summary = self.analyse_results(zk_data, test_result)
         self.results.append(results_summary)
+
+        # Check gobblin health initially in the first job run
+        if not os.path.isfile('/var/log/master_dataset.txt'):
+            # Check KAFKA overall HEALTH
+            kafka_health = self.results[-1][-1]
+            if kafka_health == 'OK':
+                # Check whether dataset has been created initially in first job run
+                if check_dataset(self.data_service_ip):
+                    LOGGER.debug("Dataset has been created in the first run")
+                    self.results.append(Event(TIMESTAMP_MILLIS(), 'master-dataset', 'gobblin.health',
+                                              ["Dataset created in first run"], "OK"))
+                    # Creating a text file to keep track of job run
+                    f = open("/var/log/master_dataset.txt","w+")
+                else:
+                    LOGGER.error("Dataset hasn't been created in the first run")
+                    self.results.append(Event(TIMESTAMP_MILLIS(), 'master-dataset', 'gobblin.health',
+                                          ["Dataset hasn't been created in first run"], "ERROR"))
+            else:
+                LOGGER.error("KAFKA OVERALL HEALTH IS NOT OK")
+            LOGGER.debug("runner finished")
+            if display:
+                self._do_display(self.results)
+                self.do_display(results_summary, zk_data, test_result)
+
+            return self.results
+
+        # Check dataset and quarantine data health every 5th or 35th minute(dataset creation happens every 30 minutes)
+        if os.path.isfile('/var/log/master_dataset.txt'):
+            # Get current time using datatime module
+            current_time = datetime.datetime.now()
+            # Check whether current minute is at 5th or 35th minute
+            if current_time.minute is 05 or current_time.minute is 35:
+                # Analyse dataset health to give an overall health metric for dataset creation
+                dataset_summary = self.analyse_dataset_health()
+                self.results.append(dataset_summary)
 
         LOGGER.debug("runner finished")
 

@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ## [0.3.3] 2017-08-01
 ### Changed
+- PNDA-1322: Test Master Dataset Health
 - PNDA-3106: Publish per topic health
 
 ## [0.3.2] 2017-07-10
