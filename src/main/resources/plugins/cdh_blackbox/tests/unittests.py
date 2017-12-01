@@ -33,7 +33,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
     '''
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.ApiResource')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.happybase.Connection')
-    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.pyhs2')
+    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.hive_api')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.connect')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_name',
                 lambda s, x: {'HBASE': 'hbase01', 'IMPALA': 'impala01', 'HIVE': 'hive01'}[x])
@@ -70,7 +70,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
         plugin = CDHBlackboxPlugin()
 
         values = plugin.runner(("--cmhost 10.60.18.144 --cmhost 7777 "
-                                "--cmuser user --cmpassword password"), True)
+                                "--cmuser user --cmpassword password --hadoopdistro CDH"), True)
 
         api_mock.assert_called_with(password='password', server_host='7777',
                                     server_port='7180', username='user', version=11)
@@ -117,7 +117,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
 
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.ApiResource')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.happybase.Connection')
-    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.pyhs2')
+    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.hive_api')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.connect')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_name',
                 lambda s, x: {'HBASE': 'hbase01', 'IMPALA': 'impala01',
@@ -162,7 +162,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
         plugin = CDHBlackboxPlugin()
 
         values = plugin.runner(("--cmhost 10.60.18.144 --cmhost 7777 "
-                                "--cmuser user --cmpassword password"), True)
+                                "--cmuser user --cmpassword password --hadoopdistro CDH"), True)
 
         api_mock.assert_called_with(password='password', server_host='7777',
                                     server_port='7180', username='user', version=11)

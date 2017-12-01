@@ -662,7 +662,7 @@ class KafkaWhitebox(PndaPlugin):
             else:
                 LOGGER.error("No valid broker found for running prod2cons run")
 
-        
+
         LOGGER.debug("Perform white box test on topics %s", \
           '-'.join(self.topic_list))
         self.process_brokers()

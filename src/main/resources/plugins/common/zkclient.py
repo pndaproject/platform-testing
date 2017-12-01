@@ -21,6 +21,7 @@ Purpose:    Browse zookeeper tree with kafka context in mind
 import json
 import socket
 import logging
+import re
 
 from kafka.client import KafkaClient
 from kazoo.client import KazooClient
@@ -54,6 +55,7 @@ class ZkClient(object):
                                   timeout=2.01,
                                   max_retries=0,
                                   read_only=True)
+        self._internal_endpoint_regex = re.compile(r'^INTERNAL_PLAINTEXT://(.*):([0-9]+)$')
 
     @classmethod
     def _zjoin(cls, parts):
@@ -140,6 +142,16 @@ class ZkClient(object):
                            vroot))
         return tuple(seq)
 
+    def _parse_endpoint_data(self, json_data):
+        found = None
+        data = json.loads(json_data)
+        for endpoint in data['endpoints']:
+            candidate = self._internal_endpoint_regex.match(endpoint)
+            if candidate is not None and len(candidate.groups()) == 2:
+                found = (candidate.group(1), int(candidate.group(2)), data['jmx_port'])
+                break
+        return found
+
     def brokers(self):
         '''
         Returns a list of KkBrokers tuples, where each tuple represents
@@ -154,23 +166,24 @@ class ZkClient(object):
         try:
             for kkey, kkinfo in self.generic_zk_list(vroot).iteritems():
                 # Let's check the broker is alive
-                val = json.loads(kkinfo)
-                if bconnect != "":
-                    bconnect += ","
-                bconnect += "%s:%d" % (val["host"], val["port"])
-                try:
-                    k = KafkaClient("%s:%d" % (val["host"], val["port"]))
-                    if k is not None:
-                        seq.append(KkBrokers(kkey, val["host"], val["port"], val["jmx_port"], True))
-                        bok += 1
-                except socket.gaierror:
-                    LOGGER.error("broker (%s:%d) - not reachable",
-                                 val["host"], val["port"])
-                    if berror != "":
-                        berror += ","
-                    berror += "%s:%d" % (val["host"], val["port"])
-                    seq.append(KkBrokers(kkey, val["host"], val["port"], val["jmx_port"], False))
-                    bko += 1
+                endpoint = self._parse_endpoint_data(kkinfo)
+                if endpoint is not None:
+                    host, port, jmx = endpoint
+                    if bconnect != "":
+                        bconnect += ","
+                    bconnect += "%s:%d" % (host, port)
+                    try:
+                        k = KafkaClient("%s:%d" % (host, port))
+                        if k is not None:
+                            seq.append(KkBrokers(kkey, host, port, jmx, True))
+                            bok += 1
+                    except socket.gaierror:
+                        LOGGER.error("broker (%s:%d) - not reachable", host, port)
+                        if berror != "":
+                            berror += ","
+                        berror += "%s:%d" % (host, port)
+                        seq.append(KkBrokers(kkey, host, port, jmx, False))
+                        bko += 1
         except NoNodeError:
             LOGGER.error("zookeeper (%s:%d) - %s tree do not exist",
                          self.host, self.port, vroot)

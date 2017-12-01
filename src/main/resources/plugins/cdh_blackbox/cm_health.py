@@ -18,20 +18,20 @@ Purpose:    Retrieves CM health status indicators
 """
 
 import time
+import requests
 
 from pnda_plugin import Event
 
 TIMESTAMP_MILLIS = lambda: int(time.time() * 1000)
 
-class CDHData(object):
+class HadoopData(object):
     '''
     Takes care of obtaining data and metadata from CDH via CM API for the purpose of
     blackbox testing. This includes CM's view of health and endpoints used in further tests
     '''
-    def __init__(self, api, cluster):
-        self._api = api
-        self._cluster = cluster
-
+    def __init__(self):
+        self._metadata = {}
+        self._values = []
         self.update()
 
     def get_hbase_endpoint(self):
@@ -72,6 +72,35 @@ class CDHData(object):
 
     def update(self):
         '''
+        Retrieve and cache data from Hadoop cluster
+        '''
+        pass
+
+    def _update_health(self, current, updated):
+        '''
+        Given current health and and an update return new current health
+        '''
+        updated_health = current
+
+        if current != 'ERROR' and (updated == 'CONCERNING' or updated == 'WARN'):
+            updated_health = 'WARN'
+        elif updated == 'BAD' or updated == 'ERROR':
+            updated_health = 'ERROR'
+
+        return updated_health
+
+class CDHData(HadoopData):
+    '''
+    Takes care of obtaining data and metadata from CDH via CM API for the purpose of
+    blackbox testing. This includes CM's view of health and endpoints used in further tests
+    '''
+    def __init__(self, api, cluster):
+        self._api = api
+        self._cluster = cluster
+        super(CDHData, self).__init__()
+
+    def update(self):
+        '''
         Retrieve endpoint metadata & overall health indicators from CM plus any reason codes
 
         Returns sequence of Event tuples with metrics taking the form of hadoop.%s.cm_indicator
@@ -93,19 +122,6 @@ class CDHData(object):
                               if 'explanation' in chk.keys() else '')
                     for chk in health_checks if is_bad(chk['summary'])]
 
-        def update_health(current, updated):
-            '''
-            Given current health and and an update return new current health
-            '''
-            updated_health = current
-
-            if current != 'ERROR' and (updated == 'CONCERNING' or updated == 'WARN'):
-                updated_health = 'WARN'
-            elif updated == 'BAD' or updated == 'ERROR':
-                updated_health = 'ERROR'
-
-            return updated_health
-
         # Main body of function - single pass over all services picking up endpoints,
         # health of each service and causes in the case of poor health
 
@@ -114,7 +130,7 @@ class CDHData(object):
             self._metadata['names'][service.type] = service.name
             self._metadata['types'][service.name] = service.type
 
-            service_health = update_health('OK', service.healthSummary)
+            service_health = self._update_health('OK', service.healthSummary)
             causes = get_causes(service.healthChecks)
 
             for role in service.get_all_roles():
@@ -138,3 +154,87 @@ class CDHData(object):
                                       "hadoop.%s.cm_indicator" % service.type,
                                       list(set(causes)),
                                       service_health))
+
+class HDPData(HadoopData):
+    '''
+    Takes care of obtaining data and metadata from HDP via Ambari's API for the purpose of
+    blackbox testing. This includes Ambari's view of health and endpoints used in further tests
+    '''
+    def __init__(self, api_host, api_user, api_pass):
+        self._ambari_api = 'http://%s:8080/api/v1' % api_host
+        self._http_headers = {'X-Requested-By': api_user}
+        self._http_auth = (api_user, api_pass)
+        super(HDPData, self).__init__()
+
+    def update(self):
+        '''
+        Retrieve endpoint metadata & overall health indicators from Ambari plus any reason codes
+
+        Returns sequence of Event tuples with metrics taking the form of hadoop.%s.cm_indicator
+        '''
+        self._values = []
+        self._metadata = {'names':{}, 'types':{}}
+
+        def get_health_state(alert_state):
+            '''
+            Convert alert state to health state
+            '''
+            if alert_state == 'CRITICAL':
+                return "ERROR"
+            elif alert_state == 'WARNING':
+                return "WARN"
+            return "OK"
+
+        # get cluster name
+        cluster_uri = requests.get('%s/clusters' % self._ambari_api, auth=self._http_auth, headers=self._http_headers).json()['items'][0]['href']
+
+        # get all alerts and aggregate a health summary from the alert list
+        alerts = requests.get('%s/alerts?fields=Alert/component_name,Alert/text,Alert/label,Alert/state&Alert/maintenance_state.in(OFF)' % cluster_uri, auth=self._http_auth, headers=self._http_headers).json()['items']
+        self._metadata['names']['HQUERY'] = 'HQUERY'
+        self._metadata['types']['HQUERY'] = 'HQUERY'
+        service_health_store = {}
+        service_health_causes = {}
+        for alert_item in alerts:
+            alert_info = alert_item['Alert']
+            service_name = alert_info['service_name']
+            if service_name == 'SPARK':
+                service_type = 'SPARK_ON_YARN'
+            elif service_name == 'AMBARI':
+                service_type = 'CLUSTER_MANAGER'
+            elif service_name == 'AMBARI_METRICS':
+                service_name = 'AMBARI'
+                service_type = 'CLUSTER_MANAGER'
+            else:
+                service_type = service_name
+
+            self._metadata['names'][service_type] = service_name
+            self._metadata['types'][service_name] = service_type
+
+            current_health = service_health_store[service_name] if service_name in service_health_store else 'OK'
+            new_health = get_health_state(alert_info['state'])
+            updated_health = self._update_health(current_health, new_health)
+            service_health_store[service_name] = updated_health
+            if new_health in ['ERROR', 'WARN']:
+                current_causes = service_health_causes[service_name] if service_name in service_health_causes else []
+                current_causes.append('%s: %s - %s' % (alert_info['host_name'], alert_info['label'], alert_info['text']))
+                service_health_causes[service_name] = current_causes
+
+
+        # Write out an event for each service
+        for service_name in service_health_store:
+            self._values.append(Event(TIMESTAMP_MILLIS(),
+                                      service_name,
+                                      "hadoop.%s.cm_indicator" % self._metadata['types'][service_name],
+                                      list(set(service_health_causes[service_name] if service_name in service_health_causes else [])),
+                                      service_health_store[service_name]))
+
+        # Grab endpoints used by other tests
+        self._metadata['hbase_endpoint'] = requests.get('%s/services/HBASE/components/HBASE_MASTER?fields=host_components' %
+                                                        cluster_uri,
+                                                        auth=self._http_auth,
+                                                        headers=self._http_headers).json()['host_components'][0]['HostRoles']['host_name']
+        self._metadata['hive_endpoint'] = requests.get('%s/services/HIVE/components/HIVE_SERVER?fields=host_components' %
+                                                       cluster_uri,
+                                                       auth=self._http_auth,
+                                                       headers=self._http_headers).json()['host_components'][0]['HostRoles']['host_name']
+        self._metadata['impala_endpoint'] = None

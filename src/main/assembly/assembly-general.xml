@@ -8,6 +8,7 @@
             <directory>src/main/resources</directory>
             <outputDirectory>/</outputDirectory>
             <includes>
+                <include>plugins/opentsdb*/**</include>
                 <include>plugins/kafka*/**</include>
                 <include>plugins/zookeeper*/**</include>
                 <include>plugins/dm*/**</include>
