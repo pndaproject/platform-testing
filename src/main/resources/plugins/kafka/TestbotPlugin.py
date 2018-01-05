@@ -27,7 +27,7 @@ import argparse
 import sys
 import os
 import logging
-
+import json
 import requests
 
 from prettytable import PrettyTable
@@ -76,6 +76,8 @@ class KafkaWhitebox(PndaPlugin):
         self.prod2cons = False
         self.runtesttopic = "avro.internal.testbot"
         self.avro_schema = "%s/%s" % (HERE, "dataplatform-raw.avsc")
+        self.jmx_config_file = "%s/%s" % (HERE, "jmx_config.json")
+        self.jmx_config = {}
         self.runnbtest = 10
         self.consumer_timeout = 1  # max number of second to wait for
         self.whitebox_error_code = -1
@@ -145,64 +147,6 @@ class KafkaWhitebox(PndaPlugin):
 
         return None
 
-    def get_operatingsysteminfo(self, host, broker_id):
-        '''
-        Get operatingsysteminfo
-        '''
-        for jmx_data in ["OpenFileDescriptorCount",
-                         "CommittedVirtualMemorySize",
-                         "FreePhysicalMemorySize",
-                         "SystemLoadAverage",
-                         "Arch",
-                         "ProcessCpuLoad",
-                         "FreeSwapSpaceSize",
-                         "TotalPhysicalMemorySize",
-                         "Name",
-                         "ObjectName",
-                         "TotalSwapSpaceSize",
-                         "ProcessCpuTime",
-                         "MaxFileDescriptorCount",
-                         "SystemCpuLoad",
-                         "Version",
-                         "AvailableProcessors"]:
-            url_jmxproxy = "http://127.0.0.1:8000/jmxproxy/" + \
-              "%s/java.lang:type=OperatingSystem/%s" % (host, jmx_data)
-
-            response = requests.get(url_jmxproxy)
-            if response.status_code == 200:
-                LOGGER.debug("Getting %s fo %s", response.text, url_jmxproxy)
-                self.results.append(Event(TIMESTAMP_MILLIS(),
-                                          'kafka',
-                                          'kafka.brokers.%d.system.%s' %
-                                          (broker_id, jmx_data), [], response.text))
-            else:
-                LOGGER.error("ERROR for url_jmxproxy: %s", url_jmxproxy)
-
-        return None
-
-    def get_underreplicatedpartitions(self, host, broker_id):
-        '''
-        Get underreplicatedpartitions
-        '''
-        url_jmxproxy = ("http://127.0.0.1:8000/jmxproxy/%s/"
-                        "kafka.server:type=ReplicaManager,"
-                        "name=UnderReplicatedPartitions/Value") % host
-
-        response = requests.get(url_jmxproxy)
-        if response.status_code == 200:
-            LOGGER.debug("Getting %s fo %s", response.text, url_jmxproxy)
-            self.results.append(Event(TIMESTAMP_MILLIS(),
-                                      'kafka',
-                                      'kafka.brokers.%d.UnderReplicatedPartitions' %
-                                      broker_id, [], response.text))
-            if response.text != "0":
-                self.whitebox_error_code = 101
-
-        else:
-            LOGGER.error("ERROR for url_jmxproxy: %s", url_jmxproxy)
-
-        return None
-
     def get_activecontrollercount(self, host, broker_id):
         '''
         Get activecontrollercount
@@ -225,45 +169,6 @@ class KafkaWhitebox(PndaPlugin):
 
         else:
             LOGGER.error("ERROR for url_jmxproxy: %s", url_jmxproxy)
-
-        return None
-
-    def get_leaderelectionrateandtimems(self, host, broker_id):
-        '''
-        Get leaderelectionrateandtimems
-        '''
-        for jmx_data in ["StdDev",
-                         "75thPercentile",
-                         "Mean",
-                         "LatencyUnit",
-                         "RateUnit",
-                         "98thPercentile",
-                         "95thPercentile",
-                         "99thPercentile",
-                         "EventType",
-                         "Max",
-                         "Count",
-                         "FiveMinuteRate",
-                         "MeanRate",
-                         "50thPercentile",
-                         "OneMinuteRate",
-                         "Min",
-                         "999thPercentile",
-                         "FifteenMinuteRate"]:
-            url_jmxproxy = ("http://127.0.0.1:8000/jmxproxy/%s/"
-                            "kafka.controller:type=ControllerStats,"
-                            "name=LeaderElectionRateAndTimeMs/%s") % (host, jmx_data)
-
-            response = requests.get(url_jmxproxy)
-            if response.status_code == 200:
-                LOGGER.debug("Getting %s fo %s", response.text, url_jmxproxy)
-                self.results.append(Event(TIMESTAMP_MILLIS(),
-                                          'kafka',
-                                          'kafka.brokers.%d.controllerstats.LeaderElectionRateAndTimeMs.%s' %
-                                          (broker_id, jmx_data), [], response.text))
-
-            else:
-                LOGGER.error("ERROR for url_jmxproxy: %s", url_jmxproxy)
 
         return None
 
@@ -514,14 +419,30 @@ class KafkaWhitebox(PndaPlugin):
         Process the brokers
         '''
         # todo see brokerID
+        self.jmx_config = json.load(open(self.jmx_config_file))
         for broker_index in xrange(1, len(self.broker_list) + 1):
             broker = self.broker_list[broker_index - 1]
             for topic in self.topic_list:
                 self.get_brokertopicmetrics(broker, topic, broker_index)
-            self.get_operatingsysteminfo(broker, broker_index)
-            self.get_underreplicatedpartitions(broker, broker_index)
+                for jmx_data in self.jmx_config["mBeans"]:
+                    url_jmxproxy = "http://127.0.0.1:8000/jmxproxy/" + \
+                    "%s/%s" % (broker, jmx_data["path"])
+                    LOGGER.info(url_jmxproxy)
+                    response = requests.get(url_jmxproxy)
+                    if response.status_code == 200:
+                        LOGGER.debug("Getting %s fo %s", response.text, url_jmxproxy)
+                        self.results.append(Event(TIMESTAMP_MILLIS(),
+                                                'kafka',
+                                                'kafka.brokers.%d.%s' %
+                                                (broker_index, jmx_data["label"]), [], response.text))
+                        if 'expect_value' in jmx_data:
+                            if response.text != jmx_data["expect_value"]:
+                                self.whitebox_error_code = jmx_data["error_code"]
+
+                    else:
+                        LOGGER.error("ERROR for url_jmxproxy: %s", url_jmxproxy)
+
             self.get_activecontrollercount(broker, broker_index)
-            self.get_leaderelectionrateandtimems(broker, broker_index)
             self.get_uncleanleaderelections(broker, broker_index)
         return None
 
