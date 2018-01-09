@@ -436,7 +436,7 @@ class KafkaWhitebox(PndaPlugin):
                                                 'kafka.brokers.%d.%s' %
                                                 (broker_index, jmx_data["label"]), [], response.text))
                         if 'expect_value' in jmx_data:
-                            if response.text != jmx_data["expect_value"]:
+                            if int(response.text) != jmx_data["expect_value"]:
                                 self.whitebox_error_code = jmx_data["error_code"]
 
                     else:
