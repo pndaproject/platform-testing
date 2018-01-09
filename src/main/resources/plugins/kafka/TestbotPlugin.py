@@ -28,27 +28,34 @@ import sys
 import os
 import logging
 import json
+from decimal import Decimal
 import requests
-
 from prettytable import PrettyTable
-
 from plugins.common.zkclient import ZkClient, ZkError
 from plugins.kafka.prod2cons import Prod2Cons
 from plugins.common.defcom import MonitorSummary, PartitionState, TestbotResult
 from plugins.common.defcom import ZkNodesHealth, ZkNode, KkBroker
-
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event
 from pnda_plugin import MonitorStatus
-from decimal import Decimal
 
 sys.path.insert(0, '../..')
 
-TestbotPlugin = lambda: KafkaWhitebox() # pylint: disable=invalid-name
-
+TESTBOTPLUGIN = lambda: KafkaWhitebox()
 TIMESTAMP_MILLIS = lambda: int(time.time() * 1000)
 HERE = os.path.abspath(os.path.dirname(__file__))
-LOGGER = logging.getLogger("TestbotPlugin")
+LOGGER = logging.getLogger("TESTBOTPLUGIN")
+NBTEST = 10
+
+def get_broker_by_id(brokers, search):
+    '''
+    Get broker by id
+    '''
+    for broker in brokers.list:
+        if broker.id == search:
+            return KkBroker(
+                search, broker.host, broker.port, broker.jmx_port, broker.alive)
+    return None
 
 class ProcessorError(Exception):
     '''
@@ -68,21 +75,12 @@ class KafkaWhitebox(PndaPlugin):
 
     def __init__(self):
         self.broker_list = []
-        self.zk_list = []
-        self.postjson = False
         self.display = False
         self.results = []
         self.topic_list = []
         self.prod2cons = False
-        self.runtesttopic = "avro.internal.testbot"
-        self.avro_schema = "%s/%s" % (HERE, "dataplatform-raw.avsc")
-        self.jmx_config_file = "%s/%s" % (HERE, "jmx_config.json")
-        self.jmx_config = {}
-        self.runnbtest = 10
-        self.consumer_timeout = 1  # max number of second to wait for
         self.whitebox_error_code = -1
         self.activecontrollercount = -1
-        self.unclean_threshold = 0.0002
 
     def read_args(self, args):
         '''
@@ -111,8 +109,7 @@ class KafkaWhitebox(PndaPlugin):
         self.results.append(Event(TIMESTAMP_MILLIS(),
                                   'kafka',
                                   'kafka.brokers.%d.topics.%s.health' %
-                                  (broker_id, topic), [], "OK")
-                            )
+                                  (broker_id, topic), [], "OK"))
         for jmx_path_name in ["BytesInPerSec", "BytesOutPerSec", \
                               "MessagesInPerSec"]:
             for jmx_data in ["RateUnit", "OneMinuteRate", \
@@ -199,27 +196,18 @@ class KafkaWhitebox(PndaPlugin):
                                           (broker_id, jmx_data), [], response.text))
 
                 if jmx_data == "Count":
-                  unclean_count = int(response.text)
+                    unclean_count = int(response.text)
                 elif jmx_data == "FifteenMinuteRate":
-                  unclean_rate = Decimal(response.text)
+                    unclean_rate = Decimal(response.text)
 
             else:
                 LOGGER.error("ERROR for url_jmxproxy: %s", url_jmxproxy)
         if unclean_count is not None and unclean_rate is not None:
-          if unclean_rate > self.unclean_threshold:
-            LOGGER.debug("broker %d threshold is %f and current rate is %f" % (broker_id,self.unclean_threshold, unclean_rate))
-            self.whitebox_error_code = 104
+            if unclean_rate > 0.0002:
+                LOGGER.debug("broker %d threshold is %f and current rate is %f",
+                             broker_id, 0.0002, unclean_rate)
+                self.whitebox_error_code = 104
 
-        return None
-
-    def get_broker_by_id(self, brokers, search):
-        '''
-        Get broker by id
-        '''
-        for broker in brokers.list:
-            if broker.id == search:
-                return KkBroker(
-                    search, broker.host, broker.port, broker.jmx_port, broker.alive)
         return None
 
     def process(self, zknodes, gbrokers, partitions):
@@ -237,7 +225,7 @@ class KafkaWhitebox(PndaPlugin):
                     # Get the partition leader
                     for part, partinfo in parts.iteritems():
                         leader_read = partinfo['leader']
-                        broker = self.get_broker_by_id(
+                        broker = get_broker_by_id(
                             gbrokers, '%d' % leader_read)
 
                         if broker is not None:
@@ -355,14 +343,14 @@ class KafkaWhitebox(PndaPlugin):
         analyse_causes = []
         analyse_metric = 'kafka.health'
 
-        if zk_data and len(zk_data.list_zk_ko) > 0:
+        if zk_data and zk_data.list_zk_ko:
             LOGGER.error(
                 "analyse_results : at least one zookeeper node failed")
             analyse_status = MonitorStatus["red"]
             analyse_causes.append(
                 "zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
 
-        if zk_data and len(zk_data.list_brokers_ko) > 0:
+        if zk_data and zk_data.list_brokers_ko:
             LOGGER.error("analyse_results : at least one broker failed")
             analyse_status = MonitorStatus["red"]
             analyse_causes.append("broker(s) unreachable (%s)" %
@@ -392,13 +380,14 @@ class KafkaWhitebox(PndaPlugin):
         if self.whitebox_error_code != -1:
 
             if self.whitebox_error_code == 101:
-                LOGGER.warn("analyse_results : UnderReplicatedPartitions should be 0")
+                LOGGER.warn("UnderReplicatedPartitions should be 0")
                 if analyse_status != MonitorStatus["red"]:
                     analyse_status = MonitorStatus["amber"]
                 analyse_causes.append(
                     "UnderReplicatedPartitions should be 0")
             elif self.whitebox_error_code == 102:
-                LOGGER.warn("analyse_results : ActiveControllerCount only one broker in the cluster should have 1")
+                LOGGER.warn(
+                    "ActiveControllerCount only one broker in the cluster should have 1")
                 if analyse_status != MonitorStatus["red"]:
                     analyse_status = MonitorStatus["amber"]
                 analyse_causes.append(
@@ -419,12 +408,12 @@ class KafkaWhitebox(PndaPlugin):
         Process the brokers
         '''
         # todo see brokerID
-        self.jmx_config = json.load(open(self.jmx_config_file))
+        jmx_config = json.load(open("%s/%s" % (HERE, "jmx_config.json")))
         for broker_index in xrange(1, len(self.broker_list) + 1):
             broker = self.broker_list[broker_index - 1]
             for topic in self.topic_list:
                 self.get_brokertopicmetrics(broker, topic, broker_index)
-                for jmx_data in self.jmx_config["mBeans"]:
+                for jmx_data in jmx_config["mBeans"]:
                     url_jmxproxy = "http://127.0.0.1:8000/jmxproxy/" + \
                     "%s/%s" % (broker, jmx_data["path"])
                     LOGGER.info(url_jmxproxy)
@@ -432,12 +421,13 @@ class KafkaWhitebox(PndaPlugin):
                     if response.status_code == 200:
                         LOGGER.debug("Getting %s fo %s", response.text, url_jmxproxy)
                         self.results.append(Event(TIMESTAMP_MILLIS(),
-                                                'kafka',
-                                                'kafka.brokers.%d.%s' %
-                                                (broker_index, jmx_data["label"]), [], response.text))
-                        if 'expect_value' in jmx_data:
-                            if int(response.text) != jmx_data["expect_value"]:
-                                self.whitebox_error_code = jmx_data["error_code"]
+                                                  'kafka',
+                                                  'kafka.brokers.%d.%s' %
+                                                  (broker_index, jmx_data["label"]),
+                                                  [],
+                                                  response.text))
+                        if 'expect_value' in jmx_data and (int(response.text) != jmx_data["expect_value"]):
+                            self.whitebox_error_code = jmx_data["error_code"]
 
                     else:
                         LOGGER.error("ERROR for url_jmxproxy: %s", url_jmxproxy)
@@ -458,7 +448,7 @@ class KafkaWhitebox(PndaPlugin):
         table = PrettyTable(['Broker', 'Port', 'Topic', 'PartId', 'Valid'])
         table.align['broker'] = 'l'
 
-        if zk_data and len(zk_data.partitions) > 0:
+        if zk_data and zk_data.partitions:
             for part in zk_data.partitions:
                 table.add_row(
                     [part.broker, part.port, part.topic, \
@@ -478,7 +468,7 @@ class KafkaWhitebox(PndaPlugin):
             print 'Number of partitions (ok):  %d' % zk_data.num_part_ok
             print 'Number of partitions (ko):  %d' % zk_data.num_part_ko
             print 'Number of partitions:       %d' % zk_data.num_partitions
-            print 'Run (total):                %d' % self.runnbtest
+            print 'Run (total):                %d' % NBTEST
             print 'Run (sent):                 %d' % test_result.sent
             print 'Run (rcv):                  %d' % test_result.received
             print 'Run (total):                %d' % test_result.notvalid
@@ -502,13 +492,12 @@ class KafkaWhitebox(PndaPlugin):
         LOGGER.debug("runner started")
 
         plugin_args = args.split() \
-            if args is not None and (len(args.strip()) > 0) \
+            if args is not None and args.strip() \
             else ""
 
         options = self.read_args(plugin_args)
 
         self.broker_list = options.brokerlist.split(",")
-        self.zk_list = options.zkconnect.split(",")
         self.prod2cons = options.prod2cons
 
         zknodes = self.getzknodes(options.zkconnect)
@@ -541,7 +530,8 @@ class KafkaWhitebox(PndaPlugin):
                             prev_zk_data.num_partitions != zk_data.num_partitions or
                             prev_zk_data.num_part_ok != zk_data.num_part_ok or
                             prev_zk_data.num_part_ko != zk_data.num_part_ko):
-                        LOGGER.error("Inconsistency found in zk (%s,%d) tree comparison", zkn.host, zkn.port)
+                        LOGGER.error("Inconsistency found in zk (%s,%d) tree comparison",
+                                     zkn.host, zkn.port)
                     else:
                         LOGGER.debug("No inconsistency found in zk (%s,%d) tree comparison", \
                                      zkn.host, zkn.port)
@@ -552,8 +542,8 @@ class KafkaWhitebox(PndaPlugin):
                                      list_brokers_ko="",
                                      num_brokers_ok=-1,
                                      num_brokers_ko=-1,
-                                     list_zk=self.zconnect,
-                                     list_zk_ko=self.zconnect,
+                                     list_zk=zknodes,
+                                     list_zk_ko=zknodes,
                                      num_zk_ok=0,
                                      num_zk_ko=len(zknodes.list),
                                      num_part_ok=-1,
@@ -564,22 +554,22 @@ class KafkaWhitebox(PndaPlugin):
         if self.prod2cons:
             LOGGER.debug("=> E2E producer / consumer test required")
             # Now, pick up a broker and run a prod2cons test run
-            if brokers and len(brokers.connect) > 0:
+            if brokers and brokers.connect:
                 # beta1: use the first of the list
                 pairbrokers = brokers.connect.split(',')
                 shost, sport = pairbrokers[0].split(':')
                 try:
                     test_runner = Prod2Cons(shost,
                                             int(sport),
-                                            self.avro_schema,
-                                            self.runtesttopic,
-                                            self.runnbtest,
-                                            self.consumer_timeout)
+                                            "%s/%s" % (HERE, "dataplatform-raw.avsc"),
+                                            "avro.internal.testbot",
+                                            NBTEST,
+                                            1)
                     test_runner.consumer_reset()
                     test_runner.prod()
                     test_result = test_runner.cons()
                 except ValueError as error:
-                    LOGGER.error("Error on Prod2Cons " + str(error))
+                    LOGGER.error("Error on Prod2Cons %s", str(error))
             else:
                 LOGGER.error("No valid broker found for running prod2cons run")
 

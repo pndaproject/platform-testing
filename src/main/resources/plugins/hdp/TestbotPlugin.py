@@ -20,16 +20,13 @@ Purpose:    HDP whitebox tests, proxied through Ambari API
 import argparse
 import time
 import json
-
 import requests
-
 from pnda_plugin import Event, PndaPlugin
 
-TestbotPlugin = lambda: HDPPlugin() # pylint: disable=invalid-name
-
+TESTBOTPLUGIN = lambda: HDPPlugin()
 TIMESTAMP_MILLIS = lambda: int(time.time() * 1000)
 
-class HDPPlugin(PndaPlugin):
+class HDPPlugin(PndaPlugin): # pylint: disable=too-few-public-methods
     '''
     Plugin for retrieving metrics from Ambari API
     '''
@@ -77,16 +74,14 @@ class HDPPlugin(PndaPlugin):
         '''
         Main section.
         '''
-        plugin_args = args.split() if args is not None and (len(args.strip()) > 0) else ""
+        plugin_args = args.split() if args is not None and args.strip() else ""
 
         options = self._read_args(plugin_args)
 
-        ambari_api = 'http://%s:%s/api/v1' % (options.cmhost, options.cmport)
-        http_headers = {'X-Requested-By': options.cmuser}
-        http_auth = (options.cmuser, options.cmpassword)
-        cluster_name = options.cluster_name
-
         def flatten(json_obj, flat_values=None, cur_key=None):
+            '''
+            Flatten value for the json_obj
+            '''
             if cur_key is None:
                 cur_key = ''
             if flat_values is None:
@@ -103,10 +98,14 @@ class HDPPlugin(PndaPlugin):
 
         events = []
         for section in self._metrics:
-            uri = '%s/clusters/%s/services/%s?fields=' % (ambari_api, cluster_name, section)
+            uri = '%s/clusters/%s/services/%s?fields=' % ('http://%s:%s/api/v1' % (options.cmhost,
+                                                                                   options.cmport),
+                                                          options.cluster_name, section)
             for metric in self._metrics[section]:
                 uri += "%s," % self._metrics[section][metric][1:]
-            metrics_data = requests.get(uri, auth=http_auth, headers=http_headers).json()
+            metrics_data = requests.get(uri,
+                                        auth=(options.cmuser, options.cmpassword),
+                                        headers={'X-Requested-By': options.cmuser}).json()
             metrics_values = flatten(metrics_data)
             for metric in self._metrics[section]:
                 value = metrics_values[self._metrics[section][metric]]
@@ -115,7 +114,9 @@ class HDPPlugin(PndaPlugin):
                     value = len(json.loads(metrics_values[self._metrics[section][metric]]))
                 service = section.split('/')[0]
                 source = service
-                events.append(Event(TIMESTAMP_MILLIS(), source, 'hadoop.%s.%s' % (service, metric), [], value))
+                events.append(Event(TIMESTAMP_MILLIS(),
+                                    source,
+                                    'hadoop.%s.%s' % (service, metric), [], value))
 
         if display:
             self._do_display(events)

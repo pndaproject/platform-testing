@@ -19,18 +19,18 @@ Purpose:      Blackbox test for the Deployment manager
 
 import time
 import argparse
-import eventlet
 import requests
-
+import eventlet
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event
 
 TIMESTAMP_MILLIS = lambda: int(round(time.time() * 1000))
-
-TestbotPlugin = lambda: DMBlackBox() # pylint: disable=invalid-name
-
+TESTBOTPLUGIN = lambda: DMBlackBox()
 
 class DMBlackBox(PndaPlugin):
+    '''
+    Blackbox test plugin for the Deployment Manager
+    '''
 
     def __init__(self):
         pass
@@ -53,7 +53,7 @@ class DMBlackBox(PndaPlugin):
         Main section.
         '''
         plugin_args = args.split() \
-        if args is not None and (len(args.strip()) > 0) \
+        if args is not None and args.strip() \
         else ""
 
         options = self.read_args(plugin_args)
@@ -100,13 +100,14 @@ class DMBlackBox(PndaPlugin):
         values.append(Event(TIMESTAMP_MILLIS(), 'deployment-manager', \
             "deployment-manager.packages_deployed_succeeded", \
             [], packages_deployed_ok))
-        cause = ""
-        health = "OK"
         if not packages_available_ok or not packages_deployed_ok:
-            health = "ERROR"
-            cause = "Deployment manager package APIs are not working"
-        values.append(Event(TIMESTAMP_MILLIS(), 'deployment-manager',
-                            'deployment-manager.health', [cause], health))
+            values.append(Event(TIMESTAMP_MILLIS(), 'deployment-manager',
+                                'deployment-manager.health',
+                                ["Deployment manager package APIs are not working"],
+                                "ERROR"))
+        else:
+            values.append(Event(TIMESTAMP_MILLIS(), 'deployment-manager',
+                                'deployment-manager.health', [""], "OK"))
         if display:
             self._do_display(values)
         return values

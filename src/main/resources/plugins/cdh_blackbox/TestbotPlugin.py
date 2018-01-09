@@ -23,26 +23,18 @@ import argparse
 import logging
 import traceback
 import subprocess
-
 import happybase
-from Hbase_thrift import AlreadyExists
-
 from pyhive import hive as hive_api
-from TCLIService.ttypes import TOperationState
-
 from impala.dbapi import connect
 from cm_api.api_client import ApiResource
-
+from Hbase_thrift import AlreadyExists
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event
 from plugins.cdh_blackbox.cm_health import CDHData, HDPData
 
-LOGGER = logging.getLogger("TestbotPlugin")
-
-
+LOGGER = logging.getLogger("TESTBOTPLUGIN")
 TIMESTAMP_MILLIS = lambda: int(time.time() * 1000)
-
-TestbotPlugin = lambda: CDHBlackboxPlugin() # pylint: disable=invalid-name
+TESTBOTPLUGIN = lambda: CDHBlackboxPlugin()
 
 class CDHBlackboxPlugin(PndaPlugin):
     '''
@@ -74,7 +66,7 @@ class CDHBlackboxPlugin(PndaPlugin):
         health_values = []
 
         plugin_args = args.split() \
-                    if args is not None and (len(args.strip()) > 0) \
+                    if args is not None and args.strip() \
                     else ""
 
         options = self.read_args(plugin_args)
@@ -167,12 +159,33 @@ class CDHBlackboxPlugin(PndaPlugin):
                                     read_hbase_ms))
             except:
                 LOGGER.error(traceback.format_exc())
-                hbase_fix_output = subprocess.check_output(['sudo', '-u', 'hbase', 'hbase', 'hbck', '-repair', 'blackbox_test_table'])
+                hbase_fix_output = subprocess.check_output(['sudo',
+                                                            '-u',
+                                                            'hbase',
+                                                            'hbase',
+                                                            'hbck',
+                                                            '-repair',
+                                                            'blackbox_test_table'])
                 for line in hbase_fix_output.splitlines():
                     if 'Status:' in line or 'inconsistencies detected' in line:
                         LOGGER.debug(line)
-                subprocess.check_output(['sudo', '-u', 'hbase', 'hbase', 'zkcli', 'rmr', '/hbase/table/blackbox_test_table'])
-                subprocess.check_output(['sudo', '-u', 'hdfs', 'hadoop', 'fs', '-rm', '-r', '-f', '-skipTrash', '/hbase/data/default/blackbox_test_table'])
+                subprocess.check_output(['sudo',
+                                         '-u',
+                                         'hbase',
+                                         'hbase',
+                                         'zkcli',
+                                         'rmr',
+                                         '/hbase/table/blackbox_test_table'])
+                subprocess.check_output(['sudo',
+                                         '-u',
+                                         'hdfs',
+                                         'hadoop',
+                                         'fs',
+                                         '-rm',
+                                         '-r',
+                                         '-f',
+                                         '-skipTrash',
+                                         '/hbase/data/default/blackbox_test_table'])
                 read_hbase_ok = False
                 reason = ['Failed to fetch row by row key from HBase']
             health_values.append(Event(TIMESTAMP_MILLIS(),
@@ -214,10 +227,12 @@ class CDHBlackboxPlugin(PndaPlugin):
                 start = TIMESTAMP_MILLIS()
                 hive.cursor().execute(("CREATE EXTERNAL TABLE "
                                        "blackbox_test_table (key STRING, value STRING)"
-                                       "STORED BY \"org.apache.hadoop.hive.hbase.HBaseStorageHandler\" "
+                                       "STORED BY "
+                                       "\"org.apache.hadoop.hive.hbase.HBaseStorageHandler\" "
                                        "WITH SERDEPROPERTIES "
                                        "(\"hbase.columns.mapping\" = \":key,cf:column\") "
-                                       "TBLPROPERTIES(\"hbase.table.name\" = \"blackbox_test_table\")"))
+                                       "TBLPROPERTIES(\"hbase.table.name\""
+                                       " = \"blackbox_test_table\")"))
                 end = TIMESTAMP_MILLIS()
                 create_metadata_ms = end-start
                 create_metadata_ok = True
@@ -379,10 +394,14 @@ class CDHBlackboxPlugin(PndaPlugin):
             return status
 
         def default_health_value(name, service, operation, failed_step):
+            '''
+            Check health value
+            '''
             result = False
-            if len([event for event in health_values if event.metric == name]) == 0:
+            if not ([event for event in health_values if event.metric == name]):
                 if failed_step is not None:
-                    message = 'Did not attempt to %s due to timeout waiting for: %s' % (operation, failed_step)
+                    message = 'Did not attempt to %s due to timeout waiting for: %s' % (operation,
+                                                                                        failed_step)
                 else:
                     message = 'Timed out waiting for %s to complete' % operation
 
@@ -404,27 +423,51 @@ class CDHBlackboxPlugin(PndaPlugin):
             hbase.close()
 
         failed_step = None
-        if default_health_value("hadoop.HBASE.create_table_succeeded", "HBASE", "create HBase table", failed_step) and failed_step is None:
+        if default_health_value("hadoop.HBASE.create_table_succeeded",
+                                "HBASE",
+                                "create HBase table",
+                                failed_step) and failed_step is None:
             failed_step = "create HBase table"
-        if default_health_value("hadoop.HBASE.write_succeeded", "HBASE", "write to HBase", failed_step) and failed_step is None:
+        if default_health_value("hadoop.HBASE.write_succeeded",
+                                "HBASE",
+                                "write to HBase",
+                                failed_step) and failed_step is None:
             failed_step = "write to HBase"
-        if default_health_value("hadoop.HBASE.read_succeeded", "HBASE", "read from HBase", failed_step) and failed_step is None:
+        if default_health_value("hadoop.HBASE.read_succeeded",
+                                "HBASE",
+                                "read from HBase",
+                                failed_step) and failed_step is None:
             failed_step = "read from HBase"
-        if default_health_value("hadoop.HIVE.connection_succeeded", "HIVE", "connect to Hive Metastore", failed_step) and failed_step is None:
+        if default_health_value("hadoop.HIVE.connection_succeeded",
+                                "HIVE",
+                                "connect to Hive Metastore", failed_step) and failed_step is None:
             failed_step = "connect to Hive Metastore"
-        if default_health_value("hadoop.HIVE.create_metadata_succeeded", "HIVE", "create Hive Metastore table", failed_step) and failed_step is None:
+        if default_health_value("hadoop.HIVE.create_metadata_succeeded",
+                                "HIVE",
+                                "create Hive Metastore table", failed_step) and failed_step is None:
             failed_step = "create Hive Metastore table"
         if cdh.get_impala_endpoint() is not None:
-            if default_health_value("hadoop.IMPALA.connection_succeeded", "IMPALA", "connect to Impala", failed_step) and failed_step is None:
+            if default_health_value("hadoop.IMPALA.connection_succeeded",
+                                    "IMPALA",
+                                    "connect to Impala", failed_step) and failed_step is None:
                 failed_step = "connect to Impala"
-            if default_health_value("hadoop.IMPALA.read_succeeded", "IMPALA", "SELECT from Impala", failed_step) and failed_step is None:
+            if default_health_value("hadoop.IMPALA.read_succeeded",
+                                    "IMPALA",
+                                    "SELECT from Impala", failed_step) and failed_step is None:
                 failed_step = "SELECT from Impala"
         else:
-            if default_health_value("hadoop.HQUERY.read_succeeded", "HQUERY", "SELECT from Hive", failed_step) and failed_step is None:
+            if default_health_value("hadoop.HQUERY.read_succeeded",
+                                    "HQUERY",
+                                    "SELECT from Hive", failed_step) and failed_step is None:
                 failed_step = "SELECT from Hive"
-        if default_health_value("hadoop.HIVE.drop_table_succeeded", "HIVE", "DROP table in Hive Metastore", failed_step) and failed_step is None:
+        if default_health_value("hadoop.HIVE.drop_table_succeeded",
+                                "HIVE",
+                                "DROP table in Hive Metastore",
+                                failed_step) and failed_step is None:
             failed_step = "DROP table in Hive Metastore"
-        if default_health_value("hadoop.HBASE.drop_table_succeeded", "HBASE", "drop table in HBase", failed_step) and failed_step is None:
+        if default_health_value("hadoop.HBASE.drop_table_succeeded",
+                                "HBASE",
+                                "drop table in HBase", failed_step) and failed_step is None:
             failed_step = "drop table in HBase"
 
         cdh_status_indicators = cdh.get_status_indicators()

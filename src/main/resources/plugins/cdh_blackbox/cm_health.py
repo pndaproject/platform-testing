@@ -186,10 +186,15 @@ class HDPData(HadoopData):
             return "OK"
 
         # get cluster name
-        cluster_uri = requests.get('%s/clusters' % self._ambari_api, auth=self._http_auth, headers=self._http_headers).json()['items'][0]['href']
+        cluster_uri = requests.get('%s/clusters' % self._ambari_api,
+                                   auth=self._http_auth,
+                                   headers=self._http_headers).json()['items'][0]['href']
 
         # get all alerts and aggregate a health summary from the alert list
-        alerts = requests.get('%s/alerts?fields=Alert/component_name,Alert/text,Alert/label,Alert/state&Alert/maintenance_state.in(OFF)' % cluster_uri, auth=self._http_auth, headers=self._http_headers).json()['items']
+        alerts = requests.get('%s/alerts?fields=Alert/component_name,Alert/text,Alert/'
+                              'label,Alert/state&Alert/maintenance_state.in(OFF)' % cluster_uri,
+                              auth=self._http_auth,
+                              headers=self._http_headers).json()['items']
         self._metadata['names']['HQUERY'] = 'HQUERY'
         self._metadata['types']['HQUERY'] = 'HQUERY'
         service_health_store = {}
@@ -216,7 +221,9 @@ class HDPData(HadoopData):
             service_health_store[service_name] = updated_health
             if new_health in ['ERROR', 'WARN']:
                 current_causes = service_health_causes[service_name] if service_name in service_health_causes else []
-                current_causes.append('%s: %s - %s' % (alert_info['host_name'], alert_info['label'], alert_info['text']))
+                current_causes.append('%s: %s - %s' % (alert_info['host_name'],
+                                                       alert_info['label'],
+                                                       alert_info['text']))
                 service_health_causes[service_name] = current_causes
 
 
@@ -229,12 +236,13 @@ class HDPData(HadoopData):
                                       service_health_store[service_name]))
 
         # Grab endpoints used by other tests
-        self._metadata['hbase_endpoint'] = requests.get('%s/services/HBASE/components/HBASE_MASTER?fields=host_components' %
-                                                        cluster_uri,
+        query = 'fields=host_components'
+        self._metadata['hbase_endpoint'] = requests.get('%s/services/HBASE/components/HBASE_MASTER?%s' %
+                                                        (cluster_uri, query),
                                                         auth=self._http_auth,
                                                         headers=self._http_headers).json()['host_components'][0]['HostRoles']['host_name']
-        self._metadata['hive_endpoint'] = requests.get('%s/services/HIVE/components/HIVE_SERVER?fields=host_components' %
-                                                       cluster_uri,
+        self._metadata['hive_endpoint'] = requests.get('%s/services/HIVE/components/HIVE_SERVER?%s' %
+                                                       (cluster_uri, query),
                                                        auth=self._http_auth,
                                                        headers=self._http_headers).json()['host_components'][0]['HostRoles']['host_name']
         self._metadata['impala_endpoint'] = None

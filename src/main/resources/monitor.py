@@ -47,7 +47,7 @@ def load_plugin(plugin_dir):
     try:
         module_name = "%s.TestbotPlugin" % plugin_dir
         module = importlib.import_module(module_name)
-        cls = getattr(module, "TestbotPlugin")
+        cls = getattr(module, "TESTBOTPLUGIN")
     except ValueError, ex:
         LOGGER.error('Unable to load module %s (%s)', module_name, ex)
     except TypeError, ex:
