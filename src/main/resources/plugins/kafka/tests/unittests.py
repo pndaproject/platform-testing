@@ -37,7 +37,7 @@ class TestKafkaWhitebox(unittest.TestCase):
         self.assertEqual(plugin.broker_list, ['127.0.0.1:9050'])
         self.assertEqual(plugin.zk_list, ['127.0.0.1:2181'])
 
-        self.assertEqual(71, len(values))
+        self.assertEqual(78, len(values))
         i = 6
 
         for jmx_path_name in ["BytesInPerSec", "BytesOutPerSec",
