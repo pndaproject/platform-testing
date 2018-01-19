@@ -19,14 +19,11 @@ Purpose:    CDH whitebox tests, proxied through CM API
 
 import time
 import argparse
-
 from cm_api.api_client import ApiResource
-
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event
 
-TestbotPlugin = lambda: CDHPlugin() # pylint: disable=invalid-name
-
+TESTBOTPLUGIN = lambda: CDHPlugin()
 TIMESTAMP_MILLIS = lambda: int(time.time() * 1000)
 
 class CDHPlugin(PndaPlugin):
@@ -86,7 +83,7 @@ class CDHPlugin(PndaPlugin):
         '''
         Main section.
         '''
-        plugin_args = args.split() if args is not None and (len(args.strip()) > 0) else ""
+        plugin_args = args.split() if args is not None and args.strip() else ""
 
         options = self._read_args(plugin_args)
 

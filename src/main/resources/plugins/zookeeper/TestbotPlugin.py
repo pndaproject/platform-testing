@@ -22,23 +22,19 @@ import sys
 import os
 import logging
 import time
-
 from prettytable import PrettyTable
-
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event
 from pnda_plugin import MonitorStatus
-
 from plugins.common.zkclient import ZkClient, ZkError
 from plugins.common.defcom import ZkNodesHealth, ZkNode, ZkMonitorSummary
 
 sys.path.insert(0, '../..')
 
-TestbotPlugin = lambda: ZookeeperBot() # pylint: disable=invalid-name
-
+TESTBOTPLUGIN = lambda: ZookeeperBot()
 TIMESTAMP_MILLIS = lambda: int(time.time() * 1000)
 HERE = os.path.abspath(os.path.dirname(__file__))
-LOGGER = logging.getLogger("TestbotPlugin")
+LOGGER = logging.getLogger("TESTBOTPLUGIN")
 
 def do_display(results_summary, zk_data, zknodes=ZkNodesHealth(-1, -1, -1, -1, -1)):
     '''
@@ -52,7 +48,7 @@ def do_display(results_summary, zk_data, zknodes=ZkNodesHealth(-1, -1, -1, -1, -
     table = PrettyTable(['Zookeeper', 'Port', 'Id', 'other', 'Valid'])
     table.align['zookeeper'] = 'l'
 
-    if zk_data and len(zk_data.list_zk) > 0:
+    if zk_data and zk_data.list_zk:
         for node in zknodes.list:
             table.add_row([node.host, node.port, "", "", node.alive])
 
@@ -86,7 +82,7 @@ def analyse_results(zk_data, zk_election):
     analyse_causes = []
     analyse_metric = 'zookeeper.health'
 
-    if zk_data and len(zk_data.list_zk_ko) > 0:
+    if zk_data and zk_data.list_zk_ko:
         LOGGER.error("analyse_results : at least one zookeeper node failed")
         analyse_status = MonitorStatus["red"]
         analyse_causes.append(
@@ -202,12 +198,12 @@ class ZookeeperBot(PndaPlugin):
             num_zk_ko=zknodes.num_ko
         )
 
-    def runner(self, pluginargs, display=True):
+    def runner(self, args, display=True):
         '''
             Main section.
         '''
         LOGGER.debug("runner started")
-        array_args = pluginargs.split(" ")
+        array_args = args.split(" ")
         options = self.read_args(array_args)
         self.zconnect = options.zconnect
         self.display = display
@@ -222,7 +218,10 @@ class ZookeeperBot(PndaPlugin):
             if zkn.alive is True:
                 try:
                     zk_data = self.process(zknodes)
-                    zkelect = os.popen("echo stat | nc %s %s | grep Mode" % (zkn.host, zkn.port)).read().replace("Mode: ", "").rstrip('\r\n')
+                    zkelect = os.popen("echo stat | nc %s %s | grep Mode" %
+                                       (zkn.host, zkn.port)) \
+                                       .read().replace("Mode: ", "") \
+                                       .rstrip('\r\n')
                     if zkelect == "leader" or zkelect == "standalone":
                         zk_election = True
                     self.results.append(Event(TIMESTAMP_MILLIS(),
