@@ -3,10 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 ### Added
-- PNDA-3391: add more metrics to kafka plugin which is now managed in a by a JMX config file
+- PNDA-3391: Add more metrics to kafka plugin which is now managed in a by a JMX config file
 
 ### Changed
-- PNDA-3601: disable emailtext in Jenkins file and replace it with notifier stage and job
+- PNDA-3601: Disable emailtext in Jenkins file and replace it with notifier stage and job
+- PNDA-2282: Improved error reporting for Deployment Manager tests
 
 ## [0.4.0] 2017-11-24
 ### Added
