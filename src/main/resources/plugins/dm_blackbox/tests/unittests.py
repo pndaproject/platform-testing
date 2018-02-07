@@ -25,23 +25,77 @@ from mock import patch, MagicMock
 from plugins.dm_blackbox.TestbotPlugin import DMBlackBox
 
 
+# This method will be used by the mock to replace requests.get
+def mocked_requests_get(status_code, text):
+    class MockResponse:
+        def __init__(self, code, msg, json_data):
+            self.json_data = json_data
+            self.status_code = code
+            self.text = msg
+
+        def json(self):
+            return self.json_data
+
+    return MockResponse(status_code, text, {"key1": "value1"})
+
+
 class TestKafkaWhitebox(unittest.TestCase):
     @patch('requests.get')
     def test_normal_use(self, requests_mock):
-        response = MagicMock()
-        response.json.return_value = json.loads('[{ "latest_versions": [{ "version": "1.0.23", '
-                                                '"file": '
-                                                '"spark-batch-example-app-1.0.23.tar.gz" }],'
-                                                ' "name": '
-                                                '"spark-batch-example-app"}]')
+        response = mocked_requests_get(200, '')
         requests_mock.return_value = response
 
+        # API Request Successful
         plugin = DMBlackBox()
         values = plugin.runner("--dmendpoint http://localhost", True)
         health = values[-1]
         self.assertEquals('OK', health[4])
 
-        # simulate failure
+        # Deployment Manager Produces - 404: Not Found
+        response = mocked_requests_get(404, 'Deployment Manager - 404: Not Found (request path=/packages)')
+        requests_mock.return_value = response
+        plugin = DMBlackBox()
+        values = plugin.runner("--dmendpoint http://localhost", True)
+        health = values[-1]
+        self.assertEquals('ERROR', health[4])
+
+        # Deployment Manager Produces - Internal Server Error
+        response = mocked_requests_get(500, 'Deployment Manager - '
+                                            '500: Internal Server Error (request path=/packages)')
+        requests_mock.return_value = response
+        plugin = DMBlackBox()
+        values = plugin.runner("--dmendpoint http://localhost", True)
+        health = values[-1]
+        self.assertEquals('ERROR', health[4])
+
+        # Package repository Manager not reachable
+        response = mocked_requests_get(503, 'Deployment Manager - '
+                                            'Unable to connect to the Package Repository Manager (request path=/xyz)')
+        requests_mock.return_value = response
+        plugin = DMBlackBox()
+        values = plugin.runner("--dmendpoint http://localhost", True)
+        health = values[-1]
+        self.assertEquals('ERROR', health[4])
+
+        # Package repository Manager Produces - 404: Not Found
+        response = mocked_requests_get(404, 'Package Repository Manager - '
+                                            '404: Not Found (request path=/packages)')
+        requests_mock.return_value = response
+        plugin = DMBlackBox()
+        values = plugin.runner("--dmendpoint http://localhost", True)
+        health = values[-1]
+        self.assertEquals('ERROR', health[4])
+
+        # Package repository Manager produces - internal server error
+        response = mocked_requests_get(500, 'Package Repository Manager - '
+                                            '500: Internal Server Error (request path=/packages)')
+        requests_mock.return_value = response
+        plugin = DMBlackBox()
+        values = plugin.runner("--dmendpoint http://localhost", True)
+        health = values[-1]
+        self.assertEquals('ERROR', health[4])
+
+        # Deployment Manager Not reachable
         requests_mock.side_effect = requests.exceptions.RequestException
         plugin = DMBlackBox()
         values = plugin.runner("--dmendpoint http://localhost", True)
