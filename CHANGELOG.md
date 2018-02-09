@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 - PNDA-3601: Disable emailtext in Jenkins file and replace it with notifier stage and job
 - PNDA-2282: Improved error reporting for Deployment Manager tests
 
+### Fixed
+- PNDA-3257: Code quality improvements
+
 ## [0.4.0] 2017-11-24
 ### Added
 - PNDA-ISSUE-42: opentsdb platform test to return empty list in causes field for good health in opentsdb.health metric
