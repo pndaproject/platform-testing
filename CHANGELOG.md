@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [0.5.0] 2018-02-10
 ### Added
 - PNDA-3391: Add more metrics to kafka plugin which is now managed in a by a JMX config file
 
