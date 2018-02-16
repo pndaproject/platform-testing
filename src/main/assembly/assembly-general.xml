@@ -12,6 +12,7 @@
                 <include>plugins/kafka*/**</include>
                 <include>plugins/zookeeper*/**</include>
                 <include>plugins/dm*/**</include>
+                <include>plugins/dataset*/**</include>
                 <include>plugins/common/**</include>                
                 <include>plugins/__init__*</include>
                 <include>*</include>
