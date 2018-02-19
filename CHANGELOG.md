@@ -2,6 +2,8 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Added
+- PNDA-1322: Test Master Dataset Health
 
 ## [0.5.0] 2018-02-10
 ### Added
