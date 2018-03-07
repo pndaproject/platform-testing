@@ -25,9 +25,8 @@ import logging
 import avro.schema
 import avro.io
 
-from kafka.client import KafkaClient
-from kafka.consumer import SimpleConsumer
-from kafka.producer import SimpleProducer
+from kafka import KafkaConsumer
+from kafka import KafkaProducer
 
 from plugins.common.defcom import TestbotResult
 
@@ -47,22 +46,18 @@ class Prod2Cons(object):
         self.sent = [-100] * self.nbmsg
         self.rcv = [-100] * self.nbmsg
         self.runtag = str(random.randint(10, 100000))
+
         try:
-            self.broker = KafkaClient("%s:%d" % (self.host, self.port))
+            self.producer = KafkaProducer(bootstrap_servers=["%s:%d" % (self.host, self.port)])
         except:
             raise ValueError(
-                "KafkaClient (%s:%d) - init failed" % (self.host, self.port))
+                "KafkaProducer (%s:%d) - init failed" % (self.host, self.port))
         try:
-            self.producer = SimpleProducer(self.broker)
+            self.consumer = KafkaConsumer(self.topic, group_id='testbot-group',
+                bootstrap_servers=["%s:%d" % (self.host, self.port)])
         except:
             raise ValueError(
-                "SimpleProducer (%s:%d) - init failed" % (self.host, self.port))
-        try:
-            self.consumer = SimpleConsumer(
-                self.broker, "testbot", topic, iter_timeout=consumer_timeout)
-        except:
-            raise ValueError(
-                "SimpleConsumer (%s:%d) - init failed" % (self.host, self.port))
+                "KafkaConsumer (%s:%d) - init failed" % (self.host, self.port))
         try:
             self.schema = avro.schema.parse(open(schema_path).read())
         except:
@@ -108,15 +103,9 @@ class Prod2Cons(object):
                          encoder)
             raw_bytes = bytes_writer.getvalue()
             self.add_sent(i)
-            self.producer.send_messages(self.topic, raw_bytes)
+            self.producer.send(self.topic, raw_bytes)
             self.sent_msg += 1
         return 0
-
-    def consumer_reset(self):
-        '''
-           Indicate to restart from the most recent offset
-        '''
-        self.consumer.seek(0, 2)
 
     def cons(self):
         '''
@@ -131,7 +120,7 @@ class Prod2Cons(object):
         for message in self.consumer:
             readcount += 1
             try:
-                newmessage = message[1][3]
+                newmessage = message.value
                 bytes_reader = io.BytesIO(newmessage)
                 decoder = avro.io.BinaryDecoder(bytes_reader)
                 reader = avro.io.DatumReader(self.schema)
@@ -149,6 +138,10 @@ class Prod2Cons(object):
             except:
                 LOGGER.error("prod2cons - consumer failed")
                 raise Exception("consumer failed")
+            
+            if readcount == self.nbmsg:
+                LOGGER.debug("prod2cons - done with reading")
+                break
 
         if readcount == self.nbmsg and readvalid == self.nbmsg:
             LOGGER.debug("consumer : test run ok")

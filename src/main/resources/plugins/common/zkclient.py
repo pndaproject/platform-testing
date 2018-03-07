@@ -173,7 +173,7 @@ class ZkClient(object):
                         bconnect += ","
                     bconnect += "%s:%d" % (host, port)
                     try:
-                        k = KafkaClient("%s:%d" % (host, port))
+                        k = KafkaClient(bootstrap_servers="%s:%d" % (host, port))
                         if k is not None:
                             seq.append(KkBrokers(kkey, host, port, jmx, True))
                             bok += 1

@@ -565,7 +565,6 @@ class KafkaWhitebox(PndaPlugin):
                                             "avro.internal.testbot",
                                             NBTEST,
                                             1)
-                    test_runner.consumer_reset()
                     test_runner.prod()
                     test_result = test_runner.cons()
                 except ValueError as error:
