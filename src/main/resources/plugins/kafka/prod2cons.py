@@ -54,12 +54,13 @@ class Prod2Cons(object):
                 "KafkaProducer (%s:%d) - init failed" % (self.host, self.port))
         try:
             self.consumer = KafkaConsumer(group_id='testbot-group',
-                bootstrap_servers=["%s:%d" % (self.host, self.port)])
+                bootstrap_servers=["%s:%d" % (self.host, self.port)],
+                consumer_timeout_ms=30000)
             self.consumer.assign([self.topicpartition])
             LOGGER.debug("consumer reset")
             self.consumer.seek_to_end(self.topicpartition)
             self.offset = self.consumer.committed(self.topicpartition)
-            LOGGER.debug("consumer reset new offset is [%d]", self.offset)
+            LOGGER.info("consumer reset new offset is [%d]", self.offset)
         except:
             raise ValueError(
                 "KafkaConsumer (%s:%d) - init failed" % (self.host, self.port))
@@ -132,7 +133,7 @@ class Prod2Cons(object):
                 reader = avro.io.DatumReader(self.schema)
                 msg = reader.read(decoder)
                 rawsplit = msg['rawdata'].split('|')
-                LOGGER.debug("consumer message [%s] - runtag is [%s] - offset is [%d]",
+                LOGGER.info("consumer message [%s] - runtag is [%s] - offset is [%d]",
                                  msg['rawdata'],
                                  self.runtag, message.offset)
                 if rawsplit[0] == self.runtag:
