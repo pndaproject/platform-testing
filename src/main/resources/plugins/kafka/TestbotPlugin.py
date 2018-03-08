@@ -565,7 +565,8 @@ class KafkaWhitebox(PndaPlugin):
                                             "avro.internal.testbot",
                                             NBTEST,
                                             1)
-                    test_runner.prod()
+                    msgsent = test_runner.prod()
+                    LOGGER.debug("prod sent %d messages", msgsent)
                     test_result = test_runner.cons()
                 except ValueError as error:
                     LOGGER.error("Error on Prod2Cons %s", str(error))

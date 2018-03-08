@@ -25,7 +25,7 @@ import logging
 import avro.schema
 import avro.io
 
-from kafka import KafkaConsumer
+from kafka import KafkaConsumer, TopicPartition
 from kafka import KafkaProducer
 
 from plugins.common.defcom import TestbotResult
@@ -46,15 +46,20 @@ class Prod2Cons(object):
         self.sent = [-100] * self.nbmsg
         self.rcv = [-100] * self.nbmsg
         self.runtag = str(random.randint(10, 100000))
-
+        self.topicpartition = TopicPartition(self.topic, 0)
         try:
-            self.producer = KafkaProducer(bootstrap_servers=["%s:%d" % (self.host, self.port)])
+            self.producer = KafkaProducer(bootstrap_servers=["%s:%d" % (self.host, self.port)],acks='all')
         except:
             raise ValueError(
                 "KafkaProducer (%s:%d) - init failed" % (self.host, self.port))
         try:
-            self.consumer = KafkaConsumer(self.topic, group_id='testbot-group',
+            self.consumer = KafkaConsumer(group_id='testbot-group',
                 bootstrap_servers=["%s:%d" % (self.host, self.port)])
+            self.consumer.assign([self.topicpartition])
+            LOGGER.debug("consumer reset")
+            self.consumer.seek_to_end(self.topicpartition)
+            self.offset = self.consumer.committed(self.topicpartition)
+            LOGGER.debug("consumer reset new offset is [%d]", self.offset)
         except:
             raise ValueError(
                 "KafkaConsumer (%s:%d) - init failed" % (self.host, self.port))
@@ -105,7 +110,7 @@ class Prod2Cons(object):
             self.add_sent(i)
             self.producer.send(self.topic, raw_bytes)
             self.sent_msg += 1
-        return 0
+        return self.sent_msg
 
     def cons(self):
         '''
@@ -119,6 +124,7 @@ class Prod2Cons(object):
         # time.sleep(2) added for a local test for checking lond delay display
         for message in self.consumer:
             readcount += 1
+            self.consumer.commit()
             try:
                 newmessage = message.value
                 bytes_reader = io.BytesIO(newmessage)
@@ -126,20 +132,24 @@ class Prod2Cons(object):
                 reader = avro.io.DatumReader(self.schema)
                 msg = reader.read(decoder)
                 rawsplit = msg['rawdata'].split('|')
+                LOGGER.debug("consumer message [%s] - runtag is [%s] - offset is [%d]",
+                                 msg['rawdata'],
+                                 self.runtag, message.offset)
                 if rawsplit[0] == self.runtag:
                     readvalid += 1
                     self.add_rcv(int(rawsplit[1]))
                 else:
                     readnotvalid += 1
-                    LOGGER.error("consumer  reads unexpected message [%s] - runtag is [%s]",
+                    LOGGER.error("consumer error message [%s] - runtag is [%s] - offset is [%d]",
                                  msg['rawdata'],
-                                 self.runtag)
+                                 self.runtag, message.offset)
+
 
             except:
                 LOGGER.error("prod2cons - consumer failed")
                 raise Exception("consumer failed")
             
-            if readcount == self.nbmsg:
+            if (message.offset == (self.nbmsg+self.offset-1)) or (self.nbmsg == readcount):
                 LOGGER.debug("prod2cons - done with reading")
                 break
 
