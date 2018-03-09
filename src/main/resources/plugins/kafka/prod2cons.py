@@ -150,7 +150,7 @@ class Prod2Cons(object):
                 LOGGER.error("prod2cons - consumer failed")
                 raise Exception("consumer failed")
             
-            if (message.offset == (self.nbmsg+self.offset-1)) or (self.nbmsg == readcount):
+            if self.nbmsg == readcount:
                 LOGGER.debug("prod2cons - done with reading")
                 break
 
