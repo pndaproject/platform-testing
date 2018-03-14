@@ -57,8 +57,6 @@ class Prod2Cons(object):
                 bootstrap_servers=["%s:%d" % (self.host, self.port)],
                 consumer_timeout_ms=30000)
             self.consumer.assign([self.topicpartition])
-            LOGGER.debug("consumer reset")
-            self.consumer.seek_to_end(self.topicpartition)
             self.offset = self.consumer.committed(self.topicpartition)
             LOGGER.info("consumer reset new offset is [%d]", self.offset)
         except:
