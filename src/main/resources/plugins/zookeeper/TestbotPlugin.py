@@ -234,6 +234,11 @@ class ZookeeperBot(PndaPlugin):
                 except ProcessorError, ex:
                     LOGGER.error('Failed to process: %s', str(ex))
                     break
+            else:
+                self.results.append(Event(TIMESTAMP_MILLIS(),
+                                          'zookeeper',
+                                          'zookeeper.%d.mode' % (zid), [], MonitorStatus["red"])
+                                   )
             zid += 1
         if not zk_data:
             zk_data = ZkMonitorSummary(
