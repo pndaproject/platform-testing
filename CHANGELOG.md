@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - PNDA-4408: Use kafka-python 1.3.5 in kafka test module
 
+### Fixed
+- PNDA-4106 Console not reflecting which zookeeper is lost
+
 ## [0.5.0] 2018-02-10
 ### Added
 - PNDA-3391: Add more metrics to kafka plugin which is now managed in a by a JMX config file
