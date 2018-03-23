@@ -22,6 +22,7 @@ import sys
 import os
 import logging
 import time
+import math
 from prettytable import PrettyTable
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event
@@ -81,12 +82,20 @@ def analyse_results(zk_data, zk_election):
     analyse_status = MonitorStatus["green"]
     analyse_causes = []
     analyse_metric = 'zookeeper.health'
+    zk_majority = int(math.ceil(float(len(zk_data.list_zk.split(",")))/2))
 
     if zk_data and zk_data.list_zk_ko:
-        LOGGER.error("analyse_results : at least one zookeeper node failed")
-        analyse_status = MonitorStatus["red"]
-        analyse_causes.append(
-            "zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
+        if zk_data.num_zk_ok >= zk_majority:
+	    LOGGER.warn(
+		"analyse_results : at least one zookeeper node failed")
+	    analyse_status = MonitorStatus["amber"]
+	    analyse_causes.append(
+		"zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
+        else:
+            LOGGER.error("analyse_results : at least one zookeeper node failed")
+            analyse_status = MonitorStatus["red"]
+            analyse_causes.append(
+                "zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
     elif zk_election is False:
         LOGGER.error("analyse_results : zookeeper election not done, check nodes mode")
         analyse_status = MonitorStatus["red"]
