@@ -165,7 +165,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
         if not self.create_uid(host, index):
             return False
         url = "%s%s%s" % ("http://", host, "/api/put")
-        payload = {"metric": METRIC_NAME, "timestamp":int(time.time()), \
+        payload = {"metric": METRIC_NAME, "timestamp": TIMESTAMP_MILLIS(), \
         "value": METRIC_VAL, "tags":{TAGK: "%s.%d" % (TAGV, index)}}
         headers = {"content-type": "application/json"}
         try:
@@ -192,7 +192,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
         msg = []
         operation = "READ"
         url = "%s%s%s" % ("http://", host, "/api/query")
-        payload = {"start": self.test_start_timestamp, "queries": [{"aggregator": "none", \
+        payload = {"start": self.test_start_timestamp, "end": TIMESTAMP_MILLIS(), "queries": [{"aggregator": "none", \
         "metric": METRIC_NAME, "tags": {TAGK: "%s.%d" % (TAGV, index)}}]}
         headers = {"content-type": "application/json"}
         try:
