@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - PNDA-4106 Console not reflecting which zookeeper is lost
+- PNDA-4223: Limit data read in test by specifying end timestamp
 
 ## [0.5.0] 2018-02-10
 ### Added
