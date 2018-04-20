@@ -26,6 +26,7 @@ import time
 import argparse
 import sys
 import os
+import math
 import logging
 import json
 from decimal import Decimal
@@ -342,13 +343,21 @@ class KafkaWhitebox(PndaPlugin):
         analyse_status = MonitorStatus["green"]
         analyse_causes = []
         analyse_metric = 'kafka.health'
+        zk_majority = int(math.ceil(float(len(zk_data.list_zk.split(",")))/2))
 
         if zk_data and zk_data.list_zk_ko:
-            LOGGER.error(
-                "analyse_results : at least one zookeeper node failed")
-            analyse_status = MonitorStatus["red"]
-            analyse_causes.append(
-                "zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
+            if zk_data.num_zk_ok >= zk_majority:
+	        LOGGER.warn(
+		    "analyse_results : at least one zookeeper node failed")
+	        analyse_status = MonitorStatus["amber"]
+	        analyse_causes.append(
+		    "zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
+            else:
+                LOGGER.error(
+                    "analyse_results : at least one zookeeper node failed")
+                analyse_status = MonitorStatus["red"]
+                analyse_causes.append(
+                    "zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
 
         if zk_data and zk_data.list_brokers_ko:
             LOGGER.error("analyse_results : at least one broker failed")
