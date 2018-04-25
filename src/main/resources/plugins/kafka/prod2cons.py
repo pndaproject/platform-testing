@@ -98,6 +98,12 @@ class Prod2Cons(object):
         writer = avro.io.DatumWriter(self.schema)
         for i in xrange(self.nbmsg):
             rawdata = "%s|%s" % (self.runtag, str(i))
+            quar_data = "%s|%s" % (self.runtag, str(i))
+            # Generating unique data for dataset health check
+            if i == 5:
+                rawdata = "%s|%s|%s" % (self.runtag, str(i), 'testavrodata')
+                quar_data = "%s|%s|%s" % (self.runtag, str(i), 'quardata')
+
             bytes_writer = io.BytesIO()
             encoder = avro.io.BinaryEncoder(bytes_writer)
             writer.write({"timestamp": TIMESTAMP_MILLIS(),
@@ -108,7 +114,8 @@ class Prod2Cons(object):
             raw_bytes = bytes_writer.getvalue()
             self.add_sent(i)
             self.producer.send(self.topic, raw_bytes)
-            self.sent_msg += 1
+            self.producer.send(self.topic, quar_data)
+            self.sent_msg += 2
         return self.sent_msg
 
     def cons(self):
@@ -126,6 +133,11 @@ class Prod2Cons(object):
             self.consumer.commit()
             try:
                 newmessage = message.value
+                if newmessage.split('|')[0] == self.runtag:
+                    readvalid +=1
+                    self.add_rcv(int(newmessage.split('|')[1]))
+                    continue
+
                 bytes_reader = io.BytesIO(newmessage)
                 decoder = avro.io.BinaryDecoder(bytes_reader)
                 reader = avro.io.DatumReader(self.schema)
