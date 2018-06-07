@@ -33,7 +33,8 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
     '''
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.ApiResource')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.happybase.Connection')
-    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.hive_api')
+    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.jPype')
+    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.jdbApi')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.connect')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_name',
                 lambda s, x: {'HBASE': 'hbase01', 'IMPALA': 'impala01', 'HIVE': 'hive01'}[x])
@@ -47,12 +48,8 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
                 lambda s: '0.0.0.0')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_status_indicators',
                 lambda s: [])
-    def test_pass_simple(self, impala_connect_mock, p2_mock, happybase_connection_mock, api_mock):
-        '''
-        Test that if all tests pass we get the expected output - no merging of indicators
-        '''
-        self.assertTrue(p2_mock is not None)
-
+    def test_pass_simple(self, impala_connect_mock, hive_mock, jpype_mock, happybase_connection_mock, api_mock):
+ 
         # mock HBase connection.table.row
         _table = mock.MagicMock()
         _table.row.return_value = {'cf:column': 'value'}
@@ -66,6 +63,17 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
         _impala_conn = mock.MagicMock()
         _impala_conn.cursor.return_value = _cursor
         impala_connect_mock.return_value = _impala_conn
+
+        # mock JayDeBe connection and JPype
+        _jpype = mock.MagicMock()
+        _jpype.getDefaultJVMPath.return_value = None
+        _jpype.startJVM.return_value = None
+        jpype_mock.return_value = _jpype
+        _hive_cursor = mock.MagicMock()
+        _hive_cursor.fetchall.return_value = [[None, 'value']]
+        _hive_conn = mock.MagicMock()
+        _hive_conn.cursor.return_value = _hive_cursor
+        hive_mock.return_value = _hive_conn
 
         plugin = CDHBlackboxPlugin()
 
@@ -117,7 +125,8 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
 
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.ApiResource')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.happybase.Connection')
-    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.hive_api')
+    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.jPype')
+    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.jdbApi')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.connect')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_name',
                 lambda s, x: {'HBASE': 'hbase01', 'IMPALA': 'impala01',
@@ -138,12 +147,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
                            Event(0, 'impala01', 'hadoop.IMPALA.cm_indicator',
                                  ['Cause C', 'Cause D'], 'WARN'),
                           ])
-    def test_merge_simple(self, impala_connect_mock, p2_mock, happybase_connection_mock, api_mock):
-        '''
-        Test that merging of indicators with CM is working as expected, with simulated failures
-        in both PNDA tests and CM indicators
-        '''
-        self.assertTrue(p2_mock is not None)
+    def test_merge_simple(self, impala_connect_mock, hive_mock, jpype_mock, happybase_connection_mock, api_mock):
 
         # mock HBase connection.table.row with success
         _table = mock.MagicMock()
@@ -158,6 +162,17 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
         _impala_conn = mock.MagicMock()
         _impala_conn.cursor.return_value = _cursor
         impala_connect_mock.return_value = _impala_conn
+
+        # mock JayDeBe connection and JPype
+        _jpype = mock.MagicMock()
+        _jpype.getDefaultJVMPath.return_value = None
+        _jpype.startJVM.return_value = None
+        jpype_mock.return_value = _jpype
+        _hive_cursor = mock.MagicMock()
+        _hive_cursor.fetchall.return_value = [[None, 'value']]
+        _hive_conn = mock.MagicMock()
+        _hive_conn.cursor.return_value = _hive_cursor
+        hive_mock.return_value = _hive_conn
 
         plugin = CDHBlackboxPlugin()
 
