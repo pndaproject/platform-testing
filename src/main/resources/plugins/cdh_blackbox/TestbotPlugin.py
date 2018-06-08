@@ -24,7 +24,8 @@ import logging
 import traceback
 import subprocess
 import happybase
-from pyhive import hive as hive_api
+import jaydebeapi as jdbApi
+import jpype as jPype
 from impala.dbapi import connect
 from cm_api.api_client import ApiResource
 from Hbase_thrift import AlreadyExists
@@ -55,7 +56,9 @@ class CDHBlackboxPlugin(PndaPlugin):
         parser.add_argument('--cmuser', default='admin', help='CM user e.g. admin')
         parser.add_argument('--cmpassword', default='admin', help='CM password e.g. admin')
         parser.add_argument('--hbaseport', default=20550, help='HBase port e.g. 20550')
-        parser.add_argument('--hiveport', default=10000, help='Hive port e.g. 10000')
+        parser.add_argument('--hivehost', default="localhost", help='Hive host e.g. 10.0.0.2')
+        parser.add_argument('--hiveport', default=10001, help='Hive port e.g. 10001')
+        parser.add_argument('--hivejar', default="", help='Hive driver and jar deps')
         parser.add_argument('--impalaport', default=21050, help='Impala port e.g. 21050')
         parser.add_argument('--hadoopdistro', default='CDH', help='Hadoop distro e.g. CDH/HDP')
 
@@ -195,14 +198,22 @@ class CDHBlackboxPlugin(PndaPlugin):
                                        read_hbase_ok))
 
             #create some hive metadata
+            driverclass = "org.apache.hive.jdbc.HiveDriver"
+            url = ("jdbc:hive2://%s:%s/;"
+                "httpPath=cliservice;"
+                "transportMode=http;" % (options.hivehost, options.hiveport)
+            )
+            args = '-Djava.class.path=%s' % options.hivejar
+            jvm_path = jPype.getDefaultJVMPath()
+            jPype.startJVM(jvm_path, args, '-Djavax.security.auth.useSubjectCredsOnly=false')
             reason = []
+            hive_connection = jdbApi.connect(driverclass,url)
             if abort_test_sequence is True:
                 return
             try:
                 start = TIMESTAMP_MILLIS()
-                hive = hive_api.connect(cdh.get_hive_endpoint())
                 end = TIMESTAMP_MILLIS()
-                hive.cursor().execute("DROP TABLE blackbox_test_table")
+                hive_connection.cursor().execute("DROP TABLE blackbox_test_table")
                 connect_to_hive_ms = end-start
                 connect_to_hive_ok = True
                 values.append(Event(TIMESTAMP_MILLIS(),
@@ -225,7 +236,7 @@ class CDHBlackboxPlugin(PndaPlugin):
             reason = []
             try:
                 start = TIMESTAMP_MILLIS()
-                hive.cursor().execute(("CREATE EXTERNAL TABLE "
+                hive_connection.cursor().execute(("CREATE EXTERNAL TABLE "
                                        "blackbox_test_table (key STRING, value STRING)"
                                        "STORED BY "
                                        "\"org.apache.hadoop.hive.hbase.HBaseStorageHandler\" "
@@ -308,7 +319,7 @@ class CDHBlackboxPlugin(PndaPlugin):
                 reason = []
                 try:
                     start = TIMESTAMP_MILLIS()
-                    hive_cursor = hive.cursor()
+                    hive_cursor = hive_connection.cursor()
                     hive_cursor.execute("SELECT * FROM blackbox_test_table")
                     table_contents = hive_cursor.fetchall()
                     end = TIMESTAMP_MILLIS()
@@ -335,7 +346,7 @@ class CDHBlackboxPlugin(PndaPlugin):
             reason = []
             try:
                 start = TIMESTAMP_MILLIS()
-                hive.cursor().execute("DROP TABLE blackbox_test_table")
+                hive_connection.cursor().execute("DROP TABLE blackbox_test_table")
                 end = TIMESTAMP_MILLIS()
                 drop_metadata_ms = end-start
                 drop_metadata_ok = True
