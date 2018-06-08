@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - PNDA-4408: Use kafka-python 1.3.5 in kafka test module
 - PNDA-4481: Change Zookeeper status once loosing nodes when there is a zk quorum
+- PNDA-4673: Use JDBC instead of PyHive to query Hive because PyHive does not support HTTP transport
 
 ### Fixed
 - PNDA-4106 Console not reflecting which zookeeper is lost
