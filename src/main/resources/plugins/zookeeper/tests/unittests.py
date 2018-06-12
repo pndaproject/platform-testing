@@ -16,18 +16,19 @@ either express or implied.
 Purpose:    Unit testing
 
 """
-
+from cStringIO import StringIO
 import unittest
 
 from mock import patch
 from pnda_plugin import Event
 
 class TestKafkaBlackbox(unittest.TestCase):
-
+    @patch('os.popen')
     @patch('plugins.common.zkclient.ZkClient')
-    def test_normal_use(self, zk_mock):
+    def test_normal_use(self, zk_mock, popen_mock):
         from plugins.zookeeper.TestbotPlugin import ZookeeperBot
         zk_mock.return_value.ping.return_value = True
+        popen_mock.return_value = StringIO("Mode: standalone")
         plugin = ZookeeperBot()
         values = plugin.runner(("--zconnect 127.0.0.1:2181"), True)
         self.assertEqual(5, len(values))
