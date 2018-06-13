@@ -200,14 +200,14 @@ class CDHBlackboxPlugin(PndaPlugin):
             #create some hive metadata
             driverclass = "org.apache.hive.jdbc.HiveDriver"
             url = ("jdbc:hive2://%s:%s/;"
-                "httpPath=cliservice;"
-                "transportMode=http;" % (options.hivehost, options.hiveport)
-            )
+                   "httpPath=cliservice;"
+                   "transportMode=http;" % (options.hivehost, options.hiveport)
+                  )
             args = '-Djava.class.path=%s' % options.hivejar
             jvm_path = jPype.getDefaultJVMPath()
             jPype.startJVM(jvm_path, args, '-Djavax.security.auth.useSubjectCredsOnly=false')
             reason = []
-            hive_connection = jdbApi.connect(driverclass,url)
+            hive_connection = jdbApi.connect(driverclass, url)
             if abort_test_sequence is True:
                 return
             try:
@@ -237,13 +237,13 @@ class CDHBlackboxPlugin(PndaPlugin):
             try:
                 start = TIMESTAMP_MILLIS()
                 hive_connection.cursor().execute(("CREATE EXTERNAL TABLE "
-                                       "blackbox_test_table (key STRING, value STRING)"
-                                       "STORED BY "
-                                       "\"org.apache.hadoop.hive.hbase.HBaseStorageHandler\" "
-                                       "WITH SERDEPROPERTIES "
-                                       "(\"hbase.columns.mapping\" = \":key,cf:column\") "
-                                       "TBLPROPERTIES(\"hbase.table.name\""
-                                       " = \"blackbox_test_table\")"))
+                                                  "blackbox_test_table (key STRING, value STRING)"
+                                                  "STORED BY "
+                                                  "\"org.apache.hadoop.hive.hbase.HBaseStorageHandler\" "
+                                                  "WITH SERDEPROPERTIES "
+                                                  "(\"hbase.columns.mapping\" = \":key,cf:column\") "
+                                                  "TBLPROPERTIES(\"hbase.table.name\""
+                                                  " = \"blackbox_test_table\")"))
                 end = TIMESTAMP_MILLIS()
                 create_metadata_ms = end-start
                 create_metadata_ok = True

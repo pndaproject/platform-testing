@@ -111,7 +111,7 @@ class TestbotCollector(object):
 
         LOGGER.debug("_send started")
 
-        if len(events) > 0:
+        if events:
 
             json_datas = [{
                 "data": [(lambda ev: {

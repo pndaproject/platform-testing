@@ -20,10 +20,10 @@ Purpose:      Blackbox test for the Deployment manager
 import time
 import argparse
 import json
-import eventlet
 
 import requests
 from requests.exceptions import RequestException
+import eventlet
 
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event

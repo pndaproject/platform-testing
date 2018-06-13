@@ -37,7 +37,7 @@ class Prod2Cons(object):
     '''
     Implements blackbox producer & consumer test to/from Kafka
     '''
-    def __init__(self, host, port, schema_path, topic, nbmsg, consumer_timeout):
+    def __init__(self, host, port, schema_path, topic, nbmsgs):
         self.topic = topic
         self.nbmsg = nbmsg
         self.sent_msg = 0
@@ -48,14 +48,14 @@ class Prod2Cons(object):
         self.runtag = str(random.randint(10, 100000))
         self.topicpartition = TopicPartition(self.topic, 0)
         try:
-            self.producer = KafkaProducer(bootstrap_servers=["%s:%d" % (self.host, self.port)],acks='all')
+            self.producer = KafkaProducer(bootstrap_servers=["%s:%d" % (self.host, self.port)], acks='all')
         except:
             raise ValueError(
                 "KafkaProducer (%s:%d) - init failed" % (self.host, self.port))
         try:
             self.consumer = KafkaConsumer(group_id='testbot-group',
-                bootstrap_servers=["%s:%d" % (self.host, self.port)],
-                consumer_timeout_ms=30000)
+                                          bootstrap_servers=["%s:%d" % (self.host, self.port)],
+                                          consumer_timeout_ms=30000)
             self.consumer.assign([self.topicpartition])
             self.offset = self.consumer.committed(self.topicpartition)
             LOGGER.info("consumer reset new offset is [%d]", self.offset)
@@ -132,8 +132,8 @@ class Prod2Cons(object):
                 msg = reader.read(decoder)
                 rawsplit = msg['rawdata'].split('|')
                 LOGGER.info("consumer message [%s] - runtag is [%s] - offset is [%d]",
-                                 msg['rawdata'],
-                                 self.runtag, message.offset)
+                            msg['rawdata'],
+                            self.runtag, message.offset)
                 if rawsplit[0] == self.runtag:
                     readvalid += 1
                     self.add_rcv(int(rawsplit[1]))
@@ -147,7 +147,7 @@ class Prod2Cons(object):
             except:
                 LOGGER.error("prod2cons - consumer failed")
                 raise Exception("consumer failed")
-            
+
             if self.nbmsg == readcount:
                 LOGGER.debug("prod2cons - done with reading")
                 break

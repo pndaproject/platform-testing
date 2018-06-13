@@ -3,7 +3,6 @@ Unit Test for OPENTSDB PLUGIN
 """
 import json
 import unittest
-import requests
 from mock import patch
 from plugins.opentsdb.TestbotPlugin import OpenTSDBWhiteBox
 
@@ -23,10 +22,14 @@ class TestOpenTSDBWhiteBox(unittest.TestCase):
         """
         Test starts
         """
-        stat_res_dict = [{"timestamp": 1503405425, "source": "opentsdb", "metric": "type.open.tsd.connectionmgr.connections", "causes": [], "value": "1"}, 
-{"timestamp": 1503405425, "source": "opentsdb", "metric": "type.rejected.tsd.connectionmgr.connections", "causes": [], "value": "0"},
-{"timestamp": 1503405425, "source": "opentsdb", "metric": "type.total.tsd.connectionmgr.connections", "causes": [], "value": "9"},
-{"timestamp": 1503405425, "source": "opentsdb", "metric": "type.closed.tsd.connectionmgr.exceptions", "causes": [], "value": "0"}]
+        stat_res_dict = [{"timestamp": 1503405425, "source": "opentsdb",
+                          "metric": "type.open.tsd.connectionmgr.connections", "causes": [], "value": "1"},
+                         {"timestamp": 1503405425, "source": "opentsdb",
+                          "metric": "type.rejected.tsd.connectionmgr.connections", "causes": [], "value": "0"},
+                         {"timestamp": 1503405425, "source": "opentsdb",
+                          "metric": "type.total.tsd.connectionmgr.connections", "causes": [], "value": "9"},
+                         {"timestamp": 1503405425, "source": "opentsdb",
+                          "metric": "type.closed.tsd.connectionmgr.exceptions", "causes": [], "value": "0"}]
         post_requests_mock.return_value = type('obj', (object,), {'status_code' : 200, \
         'text': json.dumps(stat_res_dict)})
         opentsd_write.return_value = True
@@ -131,4 +134,3 @@ class TestOpenTSDBWhiteBox(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
