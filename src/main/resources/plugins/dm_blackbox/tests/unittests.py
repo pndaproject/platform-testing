@@ -17,17 +17,16 @@ Purpose:    Unit testing
 
 """
 
-import json
 import unittest
 
 import requests
-from mock import patch, MagicMock
+from mock import patch
 from plugins.dm_blackbox.TestbotPlugin import DMBlackBox
 
 
 # This method will be used by the mock to replace requests.get
 def mocked_requests_get(status_code, text):
-    class MockResponse:
+    class MockResponse(object):
         def __init__(self, code, msg, json_data):
             self.json_data = json_data
             self.status_code = code

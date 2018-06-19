@@ -86,16 +86,13 @@ def analyse_results(zk_data, zk_election):
 
     if zk_data and zk_data.list_zk_ko:
         if zk_data.num_zk_ok >= zk_majority:
-	    LOGGER.warn(
-		"analyse_results : at least one zookeeper node failed")
-	    analyse_status = MonitorStatus["amber"]
-	    analyse_causes.append(
-		"zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
+            LOGGER.warn("analyse_results : at least one zookeeper node failed")
+            analyse_status = MonitorStatus["amber"]
+            analyse_causes.append("zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
         else:
             LOGGER.error("analyse_results : at least one zookeeper node failed")
             analyse_status = MonitorStatus["red"]
-            analyse_causes.append(
-                "zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
+            analyse_causes.append("zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
     elif zk_election is False:
         LOGGER.error("analyse_results : zookeeper election not done, check nodes mode")
         analyse_status = MonitorStatus["red"]

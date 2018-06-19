@@ -347,17 +347,13 @@ class KafkaWhitebox(PndaPlugin):
 
         if zk_data and zk_data.list_zk_ko:
             if zk_data.num_zk_ok >= zk_majority:
-	        LOGGER.warn(
-		    "analyse_results : at least one zookeeper node failed")
-	        analyse_status = MonitorStatus["amber"]
-	        analyse_causes.append(
-		    "zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
+                LOGGER.warn("analyse_results : at least one zookeeper node failed")
+                analyse_status = MonitorStatus["amber"]
+                analyse_causes.append("zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
             else:
-                LOGGER.error(
-                    "analyse_results : at least one zookeeper node failed")
+                LOGGER.error("analyse_results : at least one zookeeper node failed")
                 analyse_status = MonitorStatus["red"]
-                analyse_causes.append(
-                    "zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
+                analyse_causes.append("zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
 
         if zk_data and zk_data.list_brokers_ko:
             LOGGER.error("analyse_results : at least one broker failed")

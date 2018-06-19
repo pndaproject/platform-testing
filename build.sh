@@ -28,7 +28,7 @@ cd src/main/resources
 PYLINTOUT=$(find . -type f -name '*.py' | grep -vi __init__ | xargs pylint)
 SCORE=$(echo ${PYLINTOUT} | grep -Po '(?<=rated at ).*?(?=/10)')
 echo ${SCORE}
-if [[ $(bc <<< "${SCORE} > 8") == 0 ]]; then
+if [[ $(bc <<< "${SCORE} > 9") == 0 ]]; then
     code_quality_error "${PYLINTOUT}"
 fi
 

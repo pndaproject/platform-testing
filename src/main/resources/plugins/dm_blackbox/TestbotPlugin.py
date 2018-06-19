@@ -22,8 +22,8 @@ import re
 import time
 import argparse
 import requests
-import eventlet
 from requests.exceptions import RequestException
+import eventlet
 
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event
@@ -53,7 +53,7 @@ class DMBlackBox(PndaPlugin):
         return parser.parse_args(args)
 
     @staticmethod
-    def parse_error_msg_from_html_response(html_str):
+    def parse_err_msg_in_html_response(html_str):
         title_tag = re.search('<title>(.+?)<.*/title>', html_str)
         if title_tag:
             cause_msg = re.sub('<[A-Za-z\/][^>]*>', '', title_tag.group())
@@ -76,7 +76,7 @@ class DMBlackBox(PndaPlugin):
                 except ValueError:
                     error_msg = response.text
 
-            cause_msg = DMBlackBox.parse_error_msg_from_html_response(error_msg)
+            cause_msg = DMBlackBox.parse_err_msg_in_html_response(error_msg)
             if 'Package Repository Manager -' not in cause_msg:
                 cause_msg = 'Deployment Manager - {} (request path = {})'.format(cause_msg, path)
 
@@ -118,8 +118,8 @@ class DMBlackBox(PndaPlugin):
         except RequestException:
             cause.append('Unable to connect to the Deployment Manager (request path = {})'.format(path))
 
-        except Exception as e:
-            cause.append('Platform Testing Client Error- ' + str(e))
+        except Exception as ex:
+            cause.append('Platform Testing Client Error- ' + str(ex))
 
         # noinspection PyBroadException
         try:
@@ -141,8 +141,8 @@ class DMBlackBox(PndaPlugin):
         except RequestException:
             cause.append('Unable to connect to the Deployment Manager (request path = {})'.format(path))
 
-        except Exception as e:
-            cause.append('Platform Testing Client Error- ' + str(e))
+        except Exception as ex:
+            cause.append('Platform Testing Client Error- ' + str(ex))
 
         values.append(Event(TIMESTAMP_MILLIS(), "deployment-manager",
                             "deployment-manager.packages_available_time_ms", [], packages_available_ms))

@@ -49,7 +49,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_status_indicators',
                 lambda s: [])
     def test_pass_simple(self, impala_connect_mock, hive_mock, jpype_mock, happybase_connection_mock, api_mock):
- 
+
         # mock HBase connection.table.row
         _table = mock.MagicMock()
         _table.row.return_value = {'cf:column': 'value'}
@@ -112,8 +112,7 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
             self.assertEqual(check[0], values[index].source)
             self.assertEqual(check[1], values[index].metric)
             self.assertEqual(check[2], values[index].causes)
-            self.assertTrue(isinstance(values[index].value, int) or
-                            isinstance(values[index].value, long))
+            self.assertTrue(isinstance(values[index].value, (int, long)))
             index += 1
 
         for check in gen_res:
