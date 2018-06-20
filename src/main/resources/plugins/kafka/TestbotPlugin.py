@@ -568,8 +568,7 @@ class KafkaWhitebox(PndaPlugin):
                                             int(sport),
                                             "%s/%s" % (HERE, "dataplatform-raw.avsc"),
                                             "avro.internal.testbot",
-                                            NBTEST,
-                                            1)
+                                            NBTEST)
                     msgsent = test_runner.prod()
                     LOGGER.debug("prod sent %d messages", msgsent)
                     test_result = test_runner.cons()

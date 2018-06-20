@@ -37,7 +37,7 @@ class Prod2Cons(object):
     '''
     Implements blackbox producer & consumer test to/from Kafka
     '''
-    def __init__(self, host, port, schema_path, topic, nbmsgs):
+    def __init__(self, host, port, schema_path, topic, nbmsg):
         self.topic = topic
         self.nbmsg = nbmsg
         self.sent_msg = 0
