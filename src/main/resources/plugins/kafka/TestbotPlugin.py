@@ -107,10 +107,6 @@ class KafkaWhitebox(PndaPlugin):
         '''
         Get brokertopicmetrics
         '''
-        self.results.append(Event(TIMESTAMP_MILLIS(),
-                                  'kafka',
-                                  'kafka.brokers.%d.topics.%s.health' %
-                                  (broker_id, topic), [], "OK"))
         for jmx_path_name in ["BytesInPerSec", "BytesOutPerSec", \
                               "MessagesInPerSec"]:
             for jmx_data in ["RateUnit", "OneMinuteRate", \
