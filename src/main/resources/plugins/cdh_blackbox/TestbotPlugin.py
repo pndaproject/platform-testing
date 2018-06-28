@@ -85,6 +85,8 @@ class CDHBlackboxPlugin(PndaPlugin):
         else:
             cdh = HDPData(options.cmhost, options.cmuser, options.cmpassword)
         hbase = None
+        hive_connection = None
+        hive_cursor = None
 
         def run_test_sequence():
             # pylint: disable=too-many-return-statements
@@ -208,12 +210,13 @@ class CDHBlackboxPlugin(PndaPlugin):
             jPype.startJVM(jvm_path, args, '-Djavax.security.auth.useSubjectCredsOnly=false')
             reason = []
             hive_connection = jdbApi.connect(driverclass, url)
+            hive_cursor = hive_connection.cursor()
             if abort_test_sequence is True:
                 return
             try:
                 start = TIMESTAMP_MILLIS()
                 end = TIMESTAMP_MILLIS()
-                hive_connection.cursor().execute("DROP TABLE blackbox_test_table")
+                hive_cursor.execute("DROP TABLE blackbox_test_table")
                 connect_to_hive_ms = end-start
                 connect_to_hive_ok = True
                 values.append(Event(TIMESTAMP_MILLIS(),
@@ -236,14 +239,14 @@ class CDHBlackboxPlugin(PndaPlugin):
             reason = []
             try:
                 start = TIMESTAMP_MILLIS()
-                hive_connection.cursor().execute(("CREATE EXTERNAL TABLE "
-                                                  "blackbox_test_table (key STRING, value STRING)"
-                                                  "STORED BY "
-                                                  "\"org.apache.hadoop.hive.hbase.HBaseStorageHandler\" "
-                                                  "WITH SERDEPROPERTIES "
-                                                  "(\"hbase.columns.mapping\" = \":key,cf:column\") "
-                                                  "TBLPROPERTIES(\"hbase.table.name\""
-                                                  " = \"blackbox_test_table\")"))
+                hive_cursor.execute(("CREATE EXTERNAL TABLE "
+                                     "blackbox_test_table (key STRING, value STRING)"
+                                     "STORED BY "
+                                     "\"org.apache.hadoop.hive.hbase.HBaseStorageHandler\" "
+                                     "WITH SERDEPROPERTIES "
+                                     "(\"hbase.columns.mapping\" = \":key,cf:column\") "
+                                     "TBLPROPERTIES(\"hbase.table.name\""
+                                     " = \"blackbox_test_table\")"))
                 end = TIMESTAMP_MILLIS()
                 create_metadata_ms = end-start
                 create_metadata_ok = True
@@ -319,7 +322,6 @@ class CDHBlackboxPlugin(PndaPlugin):
                 reason = []
                 try:
                     start = TIMESTAMP_MILLIS()
-                    hive_cursor = hive_connection.cursor()
                     hive_cursor.execute("SELECT * FROM blackbox_test_table")
                     table_contents = hive_cursor.fetchall()
                     end = TIMESTAMP_MILLIS()
@@ -346,7 +348,7 @@ class CDHBlackboxPlugin(PndaPlugin):
             reason = []
             try:
                 start = TIMESTAMP_MILLIS()
-                hive_connection.cursor().execute("DROP TABLE blackbox_test_table")
+                hive_cursor.execute("DROP TABLE blackbox_test_table")
                 end = TIMESTAMP_MILLIS()
                 drop_metadata_ms = end-start
                 drop_metadata_ok = True
@@ -432,7 +434,10 @@ class CDHBlackboxPlugin(PndaPlugin):
         abort_test_sequence = True
         if hbase is not None:
             hbase.close()
-
+        if hive_cursor is not None:
+            hive_cursor.close()
+        if hive_connection is not None:
+            hive_connection.close()
         failed_step = None
         if default_health_value("hadoop.HBASE.create_table_succeeded",
                                 "HBASE",
