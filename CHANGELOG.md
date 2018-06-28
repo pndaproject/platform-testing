@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 - PNDA-4106 Console not reflecting which zookeeper is lost
 - PNDA-4223: Limit data read in test by specifying end timestamp
 - PNDA-4702: Mock popen to prevent unit tests attempting to use nc which may not be installed
+- PNDA-4714: Clean up hive connection resources
 
 ## [0.5.0] 2018-02-10
 ### Added
