@@ -31,10 +31,9 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
     '''
     Set of unit tests designed to validate cdh-blackbox Plugin
     '''
+    @mock.patch('subprocess.check_output')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.ApiResource')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.happybase.Connection')
-    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.jPype')
-    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.jdbApi')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.connect')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_name',
                 lambda s, x: {'HBASE': 'hbase01', 'IMPALA': 'impala01', 'HIVE': 'hive01'}[x])
@@ -48,32 +47,23 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
                 lambda s: '0.0.0.0')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_status_indicators',
                 lambda s: [])
-    def test_pass_simple(self, impala_connect_mock, hive_mock, jpype_mock, happybase_connection_mock, api_mock):
+    def test_pass_simple(self, impala_connect_mock, happybase_connection_mock, api_mock, subprocess_mock):
+
+        subprocess_mock.return_value = 'something'
 
         # mock HBase connection.table.row
         _table = mock.MagicMock()
-        _table.row.return_value = {'cf:column': 'value'}
+        _table.row.return_value = {'cf:column': 'un1eqV4lu3'}
         _hbase_conn = mock.MagicMock()
         _hbase_conn.table.return_value = _table
         happybase_connection_mock.return_value = _hbase_conn
 
         # mock Impala connection.cursor.fetchall
         _cursor = mock.MagicMock()
-        _cursor.fetchall.return_value = [[None, 'value']]
+        _cursor.fetchall.return_value = [[None, 'un1eqV4lu3']]
         _impala_conn = mock.MagicMock()
         _impala_conn.cursor.return_value = _cursor
         impala_connect_mock.return_value = _impala_conn
-
-        # mock JayDeBe connection and JPype
-        _jpype = mock.MagicMock()
-        _jpype.getDefaultJVMPath.return_value = None
-        _jpype.startJVM.return_value = None
-        jpype_mock.return_value = _jpype
-        _hive_cursor = mock.MagicMock()
-        _hive_cursor.fetchall.return_value = [[None, 'value']]
-        _hive_conn = mock.MagicMock()
-        _hive_conn.cursor.return_value = _hive_cursor
-        hive_mock.return_value = _hive_conn
 
         plugin = CDHBlackboxPlugin()
 
@@ -86,7 +76,6 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
         num_res = [('hbase01', 'hadoop.HBASE.create_table_time_ms', [], 5),
                    ('hbase01', 'hadoop.HBASE.write_time_ms', [], 7),
                    ('hbase01', 'hadoop.HBASE.read_time_ms', [], 1),
-                   ('hive01', 'hadoop.HIVE.connection_time_ms', [], 7),
                    ('hive01', 'hadoop.HIVE.create_metadata_time_ms', [], 2),
                    ('impala01', 'hadoop.IMPALA.connection_time_ms', [], 0),
                    ('impala01', 'hadoop.IMPALA.read_time_ms', [], 4),
@@ -95,7 +84,6 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
         gen_res = [('hbase01', 'hadoop.HBASE.create_table_succeeded', [], True),
                    ('hbase01', 'hadoop.HBASE.write_succeeded', [], True),
                    ('hbase01', 'hadoop.HBASE.read_succeeded', [], True),
-                   ('hive01', 'hadoop.HIVE.connection_succeeded', [], True),
                    ('hive01', 'hadoop.HIVE.create_metadata_succeeded', [], True),
                    ('impala01', 'hadoop.IMPALA.connection_succeeded', [], True),
                    ('impala01', 'hadoop.IMPALA.read_succeeded', [], True),
@@ -122,10 +110,9 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
             self.assertEqual(check[3], values[index].value)
             index += 1
 
+    @mock.patch('subprocess.check_output')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.ApiResource')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.happybase.Connection')
-    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.jPype')
-    @mock.patch('plugins.cdh_blackbox.TestbotPlugin.jdbApi')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.connect')
     @mock.patch('plugins.cdh_blackbox.TestbotPlugin.CDHData.get_name',
                 lambda s, x: {'HBASE': 'hbase01', 'IMPALA': 'impala01',
@@ -146,11 +133,12 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
                            Event(0, 'impala01', 'hadoop.IMPALA.cm_indicator',
                                  ['Cause C', 'Cause D'], 'WARN'),
                           ])
-    def test_merge_simple(self, impala_connect_mock, hive_mock, jpype_mock, happybase_connection_mock, api_mock):
+    def test_merge_simple(self, impala_connect_mock, happybase_connection_mock, api_mock, subprocess_mock):
+        subprocess_mock.return_value = 'something'
 
         # mock HBase connection.table.row with success
         _table = mock.MagicMock()
-        _table.row.return_value = {'cf:column': 'value'}
+        _table.row.return_value = {'cf:column': 'un1eqV4lu3'}
         _hbase_conn = mock.MagicMock()
         _hbase_conn.table.return_value = _table
         happybase_connection_mock.return_value = _hbase_conn
@@ -161,17 +149,6 @@ class TestCDHBlackboxPlugin(unittest.TestCase):
         _impala_conn = mock.MagicMock()
         _impala_conn.cursor.return_value = _cursor
         impala_connect_mock.return_value = _impala_conn
-
-        # mock JayDeBe connection and JPype
-        _jpype = mock.MagicMock()
-        _jpype.getDefaultJVMPath.return_value = None
-        _jpype.startJVM.return_value = None
-        jpype_mock.return_value = _jpype
-        _hive_cursor = mock.MagicMock()
-        _hive_cursor.fetchall.return_value = [[None, 'value']]
-        _hive_conn = mock.MagicMock()
-        _hive_conn.cursor.return_value = _hive_cursor
-        hive_mock.return_value = _hive_conn
 
         plugin = CDHBlackboxPlugin()
 

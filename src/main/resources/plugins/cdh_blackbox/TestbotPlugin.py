@@ -24,8 +24,6 @@ import logging
 import traceback
 import subprocess
 import happybase
-import jaydebeapi as jdbApi
-import jpype as jPype
 from impala.dbapi import connect
 from cm_api.api_client import ApiResource
 from Hbase_thrift import AlreadyExists
@@ -58,7 +56,6 @@ class CDHBlackboxPlugin(PndaPlugin):
         parser.add_argument('--hbaseport', default=20550, help='HBase port e.g. 20550')
         parser.add_argument('--hivehost', default="localhost", help='Hive host e.g. 10.0.0.2')
         parser.add_argument('--hiveport', default=10001, help='Hive port e.g. 10001')
-        parser.add_argument('--hivejar', default="", help='Hive driver and jar deps')
         parser.add_argument('--impalaport', default=21050, help='Impala port e.g. 21050')
         parser.add_argument('--hadoopdistro', default='CDH', help='Hadoop distro e.g. CDH/HDP')
 
@@ -85,10 +82,9 @@ class CDHBlackboxPlugin(PndaPlugin):
         else:
             cdh = HDPData(options.cmhost, options.cmuser, options.cmpassword)
         hbase = None
-        hive_connection = None
-        hive_cursor = None
 
         def run_test_sequence():
+            test_value = 'un1eqV4lu3'
             # pylint: disable=too-many-return-statements
             hbase = happybase.Connection(host=cdh.get_hbase_endpoint())
             if abort_test_sequence is True:
@@ -128,7 +124,7 @@ class CDHBlackboxPlugin(PndaPlugin):
             reason = []
             try:
                 start = TIMESTAMP_MILLIS()
-                table.put('row_key', {'cf:column': 'value'})
+                table.put('row_key', {'cf:column': test_value})
                 end = TIMESTAMP_MILLIS()
                 write_hbase_ok = True
                 write_hbase_ms = end-start
@@ -156,7 +152,7 @@ class CDHBlackboxPlugin(PndaPlugin):
                 row = table.row('row_key', columns=['cf:column'])
                 end = TIMESTAMP_MILLIS()
                 read_hbase_ms = end-start
-                read_hbase_ok = row['cf:column'] == 'value'
+                read_hbase_ok = row['cf:column'] == test_value
                 values.append(Event(TIMESTAMP_MILLIS(),
                                     cdh.get_name('HBASE'),
                                     "hadoop.HBASE.read_time_ms",
@@ -200,53 +196,16 @@ class CDHBlackboxPlugin(PndaPlugin):
                                        read_hbase_ok))
 
             #create some hive metadata
-            driverclass = "org.apache.hive.jdbc.HiveDriver"
-            url = ("jdbc:hive2://%s:%s/;"
-                   "httpPath=cliservice;"
-                   "transportMode=http;" % (options.hivehost, options.hiveport)
-                  )
-            args = '-Djava.class.path=%s' % options.hivejar
-            jvm_path = jPype.getDefaultJVMPath()
-            jPype.startJVM(jvm_path, args, '-Djavax.security.auth.useSubjectCredsOnly=false')
-            reason = []
-            hive_connection = jdbApi.connect(driverclass, url)
-            hive_cursor = hive_connection.cursor()
-            if abort_test_sequence is True:
-                return
-            try:
-                start = TIMESTAMP_MILLIS()
-                end = TIMESTAMP_MILLIS()
-                hive_cursor.execute("DROP TABLE blackbox_test_table")
-                connect_to_hive_ms = end-start
-                connect_to_hive_ok = True
-                values.append(Event(TIMESTAMP_MILLIS(),
-                                    cdh.get_name('HIVE'),
-                                    "hadoop.HIVE.connection_time_ms",
-                                    [],
-                                    connect_to_hive_ms))
-            except:
-                LOGGER.error(traceback.format_exc())
-                connect_to_hive_ok = False
-                reason = ['Failed to connect to Hive Metastore']
-            health_values.append(Event(TIMESTAMP_MILLIS(),
-                                       cdh.get_name('HIVE'),
-                                       "hadoop.HIVE.connection_succeeded",
-                                       reason,
-                                       connect_to_hive_ok))
-
             if abort_test_sequence is True:
                 return
             reason = []
             try:
                 start = TIMESTAMP_MILLIS()
-                hive_cursor.execute(("CREATE EXTERNAL TABLE "
-                                     "blackbox_test_table (key STRING, value STRING)"
-                                     "STORED BY "
-                                     "\"org.apache.hadoop.hive.hbase.HBaseStorageHandler\" "
-                                     "WITH SERDEPROPERTIES "
-                                     "(\"hbase.columns.mapping\" = \":key,cf:column\") "
-                                     "TBLPROPERTIES(\"hbase.table.name\""
-                                     " = \"blackbox_test_table\")"))
+                create_table = """CREATE EXTERNAL TABLE blackbox_test_table (key STRING, value STRING)
+                                  STORED BY \"org.apache.hadoop.hive.hbase.HBaseStorageHandler\"
+                                  WITH SERDEPROPERTIES (\"hbase.columns.mapping\" = \":key,cf:column\") TBLPROPERTIES(\"hbase.table.name\" = \"blackbox_test_table\")"""
+                hive_output = run_hive_query(create_table)
+                logging.debug("hive metadata created")
                 end = TIMESTAMP_MILLIS()
                 create_metadata_ms = end-start
                 create_metadata_ok = True
@@ -303,7 +262,7 @@ class CDHBlackboxPlugin(PndaPlugin):
                     table_contents = impala_cursor.fetchall()
                     end = TIMESTAMP_MILLIS()
                     read_impala_ms = end-start
-                    read_impala_ok = table_contents[0][1] == 'value'
+                    read_impala_ok = table_contents[0][1] == test_value
                     values.append(Event(TIMESTAMP_MILLIS(),
                                         cdh.get_name('IMPALA'),
                                         "hadoop.IMPALA.read_time_ms",
@@ -322,11 +281,10 @@ class CDHBlackboxPlugin(PndaPlugin):
                 reason = []
                 try:
                     start = TIMESTAMP_MILLIS()
-                    hive_cursor.execute("SELECT * FROM blackbox_test_table")
-                    table_contents = hive_cursor.fetchall()
+                    hive_output = run_hive_query("SELECT * FROM blackbox_test_table")
                     end = TIMESTAMP_MILLIS()
                     read_hive_ms = end-start
-                    read_hive_ok = table_contents[0][1] == 'value'
+                    read_hive_ok = test_value in hive_output
                     values.append(Event(TIMESTAMP_MILLIS(),
                                         cdh.get_name('HQUERY'),
                                         "hadoop.HQUERY.read_time_ms",
@@ -348,7 +306,7 @@ class CDHBlackboxPlugin(PndaPlugin):
             reason = []
             try:
                 start = TIMESTAMP_MILLIS()
-                hive_cursor.execute("DROP TABLE blackbox_test_table")
+                hive_output = run_hive_query("DROP TABLE blackbox_test_table")
                 end = TIMESTAMP_MILLIS()
                 drop_metadata_ms = end-start
                 drop_metadata_ok = True
@@ -395,6 +353,15 @@ class CDHBlackboxPlugin(PndaPlugin):
                                        reason,
                                        drop_table_ok))
 
+        def run_hive_query(query):
+            beeline_output = subprocess.check_output([
+                "beeline",
+                "-u", "jdbc:hive2://%s:%s/;transportMode=http;httpPath=cliservice" % (options.hivehost, options.hiveport),
+                "-e",
+                query])
+            logging.debug(beeline_output)
+            return beeline_output
+
         def to_status(flag):
             '''
             Convert True to OK and False to ERROR
@@ -434,10 +401,6 @@ class CDHBlackboxPlugin(PndaPlugin):
         abort_test_sequence = True
         if hbase is not None:
             hbase.close()
-        if hive_cursor is not None:
-            hive_cursor.close()
-        if hive_connection is not None:
-            hive_connection.close()
         failed_step = None
         if default_health_value("hadoop.HBASE.create_table_succeeded",
                                 "HBASE",
@@ -454,10 +417,6 @@ class CDHBlackboxPlugin(PndaPlugin):
                                 "read from HBase",
                                 failed_step) and failed_step is None:
             failed_step = "read from HBase"
-        if default_health_value("hadoop.HIVE.connection_succeeded",
-                                "HIVE",
-                                "connect to Hive Metastore", failed_step) and failed_step is None:
-            failed_step = "connect to Hive Metastore"
         if default_health_value("hadoop.HIVE.create_metadata_succeeded",
                                 "HIVE",
                                 "create Hive Metastore table", failed_step) and failed_step is None:
