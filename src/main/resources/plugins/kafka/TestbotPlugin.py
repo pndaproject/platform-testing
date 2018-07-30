@@ -410,6 +410,12 @@ class KafkaWhitebox(PndaPlugin):
         '''
         # todo see brokerID
         jmx_config = json.load(open("%s/%s" % (HERE, "jmx_config.json")))
+        self.results.append(Event(TIMESTAMP_MILLIS(),
+                                 'kafka',
+                                 'kafka.available.topics',
+                                 [],
+                                 '%s' % (map(str, self.topic_list))))
+
         for broker_index in xrange(1, len(self.broker_list) + 1):
             broker = self.broker_list[broker_index - 1]
             for topic in self.topic_list:
