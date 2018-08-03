@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 ### Added
 - PNDA-4431: Add basic platform test for Flink in PNDA
+- PNDA-4754: Add new metric for list of available kafka topics
 
 ### Changed
 - PNDA-4408: Use kafka-python 1.3.5 in kafka test module
