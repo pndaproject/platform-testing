@@ -3,6 +3,7 @@
 # Please check pnda-build/ for the build products
 
 VERSION=${1}
+HADOOP_FLAVOR=${2}
 
 function error {
     echo "Not Found"
@@ -43,9 +44,9 @@ cd ${BASE}
 # Build
 mkdir -p pnda-build
 mvn versions:set -DnewVersion=${VERSION}
-mvn clean package
-mv target/platform-testing-cdh-${VERSION}.tar.gz pnda-build/
+mvn clean package -P${HADOOP_FLAVOR}
+mv target/platform-testing-${HADOOP_FLAVOR}-${VERSION}.tar.gz pnda-build/
 mv target/platform-testing-general-${VERSION}.tar.gz pnda-build/
-sha512sum pnda-build/platform-testing-cdh-${VERSION}.tar.gz > pnda-build/platform-testing-cdh-${VERSION}.tar.gz.sha512.txt
+sha512sum pnda-build/platform-testing-${HADOOP_FLAVOR}-${VERSION}.tar.gz > pnda-build/platform-testing-${HADOOP_FLAVOR}-${VERSION}.tar.gz.sha512.txt
 sha512sum pnda-build/platform-testing-general-${VERSION}.tar.gz > pnda-build/platform-testing-general-${VERSION}.tar.gz.sha512.txt
 
