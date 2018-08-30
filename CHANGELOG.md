@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - PNDA-4481: Change Zookeeper status once loosing nodes when there is a zk quorum
 - PNDA-4673: Use JDBC instead of PyHive to query Hive because PyHive does not support HTTP transport
 - PNDA-4729: Remove unused per-topic health metric
+- PNDA-4899: Introduce conditionality to produce build/mirror with only artefacts required
 
 ### Fixed
 - PNDA-4106: Console not reflecting which zookeeper is lost
