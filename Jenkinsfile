@@ -14,7 +14,7 @@ node {
             checkout([$class: 'GitSCM', branches: [[name: "tags/${version}"]], extensions: [[$class: 'CleanCheckout']]])
         }
 
-        sh("./build.sh ${version}")
+        sh("./build.sh ${version} HDP")
 
         stage 'Deploy'
         build job: 'deploy', parameters: [[$class: 'StringParameterValue', name: 'artifacts_path', value: "${workspace}/pnda-build"]]
