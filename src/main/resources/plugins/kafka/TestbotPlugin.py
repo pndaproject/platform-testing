@@ -93,6 +93,8 @@ class KafkaWhitebox(PndaPlugin):
             usage='%(prog)s [options]',
             description='Show state of Zk-Kafka cluster',
             add_help=False)
+        parser.add_argument('--jmxproxy', default='127.0.0.1:8000',
+                            help='host:port of the jmxproxy to use')
         parser.add_argument('--brokerlist', default='localhost:9092',
                             help='comma separated host:port pairs, each corresponding to ' + \
           'a kafka broker (default: localhost:9092)')
@@ -112,9 +114,9 @@ class KafkaWhitebox(PndaPlugin):
             for jmx_data in ["RateUnit", "OneMinuteRate", \
                              "EventType", "Count", "FifteenMinuteRate",
                              "FiveMinuteRate", "MeanRate"]:
-                url_jmxproxy = ("http://127.0.0.1:8000/jmxproxy/%s/"
+                url_jmxproxy = ("http://%s/jmxproxy/%s/"
                                 "kafka.server:type=BrokerTopicMetrics,"
-                                "name=%s,topic=%s/%s") % (host, jmx_path_name, topic, jmx_data)
+                                "name=%s,topic=%s/%s") % (self.jmxproxy, host, jmx_path_name, topic, jmx_data)
 
                 response = requests.get(url_jmxproxy)
                 if response.status_code == 200:
@@ -145,9 +147,9 @@ class KafkaWhitebox(PndaPlugin):
         '''
         Get activecontrollercount
         '''
-        url_jmxproxy = ("http://127.0.0.1:8000/jmxproxy/%s/"
+        url_jmxproxy = ("http://%s/jmxproxy/%s/"
                         "kafka.controller:type=KafkaController,"
-                        "name=ActiveControllerCount/Value") % host
+                        "name=ActiveControllerCount/Value") % (self.jmxproxy, host)
 
         response = requests.get(url_jmxproxy)
         if response.status_code == 200:
@@ -179,9 +181,9 @@ class KafkaWhitebox(PndaPlugin):
                          "FifteenMinuteRate",
                          "FiveMinuteRate",
                          "MeanRate"]:
-            url_jmxproxy = ("http://127.0.0.1:8000/jmxproxy/%s/"
+            url_jmxproxy = ("http://%s/jmxproxy/%s/"
                             "kafka.controller:type=ControllerStats,"
-                            "name=UncleanLeaderElectionsPerSec/%s") % (host, jmx_data)
+                            "name=UncleanLeaderElectionsPerSec/%s") % (self.jmxproxy, host, jmx_data)
 
             response = requests.get(url_jmxproxy)
             if response.status_code == 200:
@@ -421,8 +423,7 @@ class KafkaWhitebox(PndaPlugin):
             for topic in self.topic_list:
                 self.get_brokertopicmetrics(broker, topic, broker_index)
                 for jmx_data in jmx_config["mBeans"]:
-                    url_jmxproxy = "http://127.0.0.1:8000/jmxproxy/" + \
-                    "%s/%s" % (broker, jmx_data["path"])
+                    url_jmxproxy = "http://%s/jmxproxy/%s/%s" % (self.jmxproxy, broker, jmx_data["path"])
                     LOGGER.info(url_jmxproxy)
                     response = requests.get(url_jmxproxy)
                     if response.status_code == 200:
@@ -506,6 +507,7 @@ class KafkaWhitebox(PndaPlugin):
 
         self.broker_list = options.brokerlist.split(",")
         self.prod2cons = options.prod2cons
+        self.jmxproxy = options.jmxproxy
 
         zknodes = self.getzknodes(options.zkconnect)
         LOGGER.debug(zknodes)
