@@ -222,7 +222,7 @@ class KafkaWhitebox(PndaPlugin):
             if obj.partitions["valid"] is True:
                 for parts in parts_object:
                     # Get the partition leader
-                    for part, partinfo in parts.iteritems():
+                    for part, partinfo in parts.items():
                         leader_read = partinfo['leader']
                         broker = get_broker_by_id(
                             gbrokers, '%d' % leader_read)
@@ -418,7 +418,7 @@ class KafkaWhitebox(PndaPlugin):
                                  [],
                                  '%s' % (map(str, self.topic_list))))
 
-        for broker_index in xrange(1, len(self.broker_list) + 1):
+        for broker_index in range(1, len(self.broker_list) + 1):
             broker = self.broker_list[broker_index - 1]
             for topic in self.topic_list:
                 self.get_brokertopicmetrics(broker, topic, broker_index)
@@ -463,34 +463,34 @@ class KafkaWhitebox(PndaPlugin):
                     part.partId, part.alive])
 
         if zk_data:
-            print table.get_string(sortby='Broker')
-            print
-            print 'List of brokers:            %s' % zk_data.list_brokers
-            print 'List of brokers (ko):       %s' % zk_data.list_brokers_ko
-            print 'Number of brokers (ok):     %d' % zk_data.num_brokers_ok
-            print 'Number of brokers (ko):     %d' % zk_data.num_brokers_ko
-            print 'List of zk:                 %s' % zk_data.list_zk
-            print 'List of zk (ko):            %s' % zk_data.list_zk_ko
-            print 'Number of zk nodes (ok):    %d' % zk_data.num_zk_ok
-            print 'Number of zk nodes (ko):    %d' % zk_data.num_zk_ko
-            print 'Number of partitions (ok):  %d' % zk_data.num_part_ok
-            print 'Number of partitions (ko):  %d' % zk_data.num_part_ko
-            print 'Number of partitions:       %d' % zk_data.num_partitions
-            print 'Run (total):                %d' % NBTEST
-            print 'Run (sent):                 %d' % test_result.sent
-            print 'Run (rcv):                  %d' % test_result.received
-            print 'Run (total):                %d' % test_result.notvalid
-            print 'Run (avg ms):               %d' % test_result.avg_ms
+            print(table.get_string(sortby='Broker'))
+            print()
+            print('List of brokers:            %s' % zk_data.list_brokers)
+            print('List of brokers (ko):       %s' % zk_data.list_brokers_ko)
+            print('Number of brokers (ok):     %d' % zk_data.num_brokers_ok)
+            print('Number of brokers (ko):     %d' % zk_data.num_brokers_ko)
+            print('List of zk:                 %s' % zk_data.list_zk)
+            print('List of zk (ko):            %s' % zk_data.list_zk_ko)
+            print('Number of zk nodes (ok):    %d' % zk_data.num_zk_ok)
+            print('Number of zk nodes (ko):    %d' % zk_data.num_zk_ko)
+            print('Number of partitions (ok):  %d' % zk_data.num_part_ok)
+            print('Number of partitions (ko):  %d' % zk_data.num_part_ko)
+            print('Number of partitions:       %d' % zk_data.num_partitions)
+            print('Run (total):                %d' % NBTEST)
+            print('Run (sent):                 %d' % test_result.sent)
+            print('Run (rcv):                  %d' % test_result.received)
+            print('Run (total):                %d' % test_result.notvalid)
+            print('Run (avg ms):               %d' % test_result.avg_ms)
 
-        print '-' * 50
-        print 'overall status: ',
-        print "OK" if results_summary.value == MonitorStatus["green"] else \
+        print('-' * 50)
+        print('overall status:',
+              "OK" if results_summary.value == MonitorStatus["green"] else \
               "WARN" if results_summary.value == MonitorStatus["amber"] else \
-              "ERROR"
+              "ERROR")
         if results_summary.value != MonitorStatus["green"]:
-            print 'causes:'
-            print results_summary.causes
-        print '-' * 50
+            print('causes:')
+            print(results_summary.causes)
+        print('-' * 50)
         LOGGER.debug("do_display finished")
 
     def runner(self, args, display=True):
@@ -528,10 +528,10 @@ class KafkaWhitebox(PndaPlugin):
                                 "adding %s to the topic list", topic.id)
 
                     zk_data = self.process(zknodes, brokers, topics)
-                except ZkError, exc:
+                except ZkError as exc:
                     LOGGER.error('Failed to access Zookeeper: %s', str(exc))
                     break
-                except ProcessorError, exc:
+                except ProcessorError as exc:
                     LOGGER.error('Failed to process: %s', str(exc))
                     break
                 if prev_zk_data is not None:

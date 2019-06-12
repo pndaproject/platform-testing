@@ -111,13 +111,13 @@ class ZkClient(object):
         seq = []
         vroot = '/brokers/topics'
         try:
-            for topic in self.generic_zk_list(vroot).iterkeys():
+            for topic in self.generic_zk_list(vroot).keys():
                 partitions = []
                 try:
                     for part in self.generic_zk_list( \
-                        self._zjoin([vroot, topic, 'partitions'])).iterkeys():
+                        self._zjoin([vroot, topic, 'partitions'])).keys():
                         for part_value in self.generic_zk_list( \
-                self._zjoin([vroot, topic, 'partitions', part])).itervalues():
+                self._zjoin([vroot, topic, 'partitions', part])).values():
 
                             val = json.loads(part_value)
                             partitions.append(\
@@ -164,7 +164,7 @@ class ZkClient(object):
         bconnect = ""
         berror = ""
         try:
-            for kkey, kkinfo in self.generic_zk_list(vroot).iteritems():
+            for kkey, kkinfo in self.generic_zk_list(vroot).items():
                 # Let's check the broker is alive
                 endpoint = self._parse_endpoint_data(kkinfo)
                 if endpoint is not None:

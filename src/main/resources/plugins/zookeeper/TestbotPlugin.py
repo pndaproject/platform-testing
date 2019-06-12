@@ -54,22 +54,22 @@ def do_display(results_summary, zk_data, zknodes=ZkNodesHealth(-1, -1, -1, -1, -
             table.add_row([node.host, node.port, "", "", node.alive])
 
     if zk_data:
-        print table.get_string(sortby='Zookeeper')
-        print
-        print 'List of zk:                 %s' % zk_data.list_zk
-        print 'List of zk (ko):            %s' % zk_data.list_zk_ko
-        print 'Number of zk nodes (ok):    %d' % zk_data.num_zk_ok
-        print 'Number of zk nodes (ko):    %d' % zk_data.num_zk_ko
+        print(table.get_string(sortby='Zookeeper'))
+        print()
+        print('List of zk:                 %s' % zk_data.list_zk)
+        print('List of zk (ko):            %s' % zk_data.list_zk_ko)
+        print('Number of zk nodes (ok):    %d' % zk_data.num_zk_ok)
+        print('Number of zk nodes (ko):    %d' % zk_data.num_zk_ko)
 
-    print '-' * 50
-    print 'overall status: ',
-    print "OK" if results_summary.value == MonitorStatus["green"] else \
+    print('-' * 50)
+    print('overall status:',
+          "OK" if results_summary.value == MonitorStatus["green"] else \
           "WARN" if results_summary.value == MonitorStatus["amber"] else \
-          "ERROR"
+          "ERROR")
     if results_summary.value != MonitorStatus["green"]:
-        print 'causes:'
-        print results_summary.causes
-    print '-' * 50
+        print('causes:')
+        print(results_summary.causes)
+    print('-' * 50)
     LOGGER.debug("do_display finished")
 
 def analyse_results(zk_data, zk_election):
@@ -234,10 +234,10 @@ class ZookeeperBot(PndaPlugin):
                                               'zookeeper',
                                               'zookeeper.%d.mode' % (zid), [], zkelect)
                                        )
-                except ZkError, ex:
+                except ZkError as ex:
                     LOGGER.error('Failed to access Zookeeper: %s', str(ex))
                     break
-                except ProcessorError, ex:
+                except ProcessorError as ex:
                     LOGGER.error('Failed to process: %s', str(ex))
                     break
             else:

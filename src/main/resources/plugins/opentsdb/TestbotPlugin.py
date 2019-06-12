@@ -90,7 +90,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
             msg.append(response_dict["error"]["message"])
             self.process_resp(msg, "STATS", "0", index)
             return False
-        except requests.exceptions.ConnectionError, ex_message:
+        except requests.exceptions.ConnectionError as ex_message:
             LOGGER.warning("Unable to fetch stats data error message is %s", str(ex_message))
             self.process_resp([str(ex_message)], "STATS", "0", index)
             return False
@@ -150,7 +150,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
                     error message is %s", response_dict["error"]["message"])
                     msg.append(response_dict["error"]["message"])
                     self.process_resp(msg, operation, "0", index)
-        except requests.exceptions.ConnectionError, ex_message:
+        except requests.exceptions.ConnectionError as ex_message:
             LOGGER.warning("Unable to create UID's for metric, tagk and tagv, \
             error message is %s", str(ex_message))
             self.process_resp([str(ex_message)], operation, "0", index)
@@ -180,7 +180,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
             response_dict["error"]["message"])
             self.process_resp(msg, operation, "0", index)
             return False
-        except requests.exceptions.ConnectionError, ex_message:
+        except requests.exceptions.ConnectionError as ex_message:
             LOGGER.warning("Unable to write 1, error message is %s", str(ex_message))
             self.process_resp([str(ex_message)], operation, "0", index)
             return False
@@ -207,7 +207,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
             msg.append(response_dict["error"]["message"])
             self.process_resp(msg, operation, "0", index)
             return False
-        except requests.exceptions.ConnectionError, ex_message:
+        except requests.exceptions.ConnectionError as ex_message:
             LOGGER.warning("unable to read in metric %s and error message is %s", \
             METRIC_NAME, str(ex_message))
             self.process_resp([str(ex_message)], operation, "0", index)
@@ -242,7 +242,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
                 msg.append(response_dict["error"]["message"])
                 self.process_resp(msg, operation, "0", index)
                 return False
-        except requests.exceptions.ConnectionError, ex_message:
+        except requests.exceptions.ConnectionError as ex_message:
             LOGGER.warning("Unable to delete value in metric %s and error message is %s", \
             METRIC_NAME, str(ex_message))
             self.process_resp([str(ex_message)], operation, "0", index)
@@ -305,7 +305,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
         Pretty display
         """
         LOGGER.debug("do_display start")
-        print "%s%s%s" % ("-"*72, " Status ", "-"*72)
+        print("%s%s%s" % ("-"*72, " Status ", "-"*72))
         table = PrettyTable(["Timestamp", "Source", "Metric", "Cause", "Value"])
         table.align = "l"
         for row in results:
@@ -314,9 +314,9 @@ class OpenTSDBWhiteBox(PndaPlugin):
         for row in results:
             if '.health' not in row[2] and "tsd.hosts" not in row[2]:
                 table.add_row([row[0], row[1], row[2], row[3], row[4]])
-        print table
+        print(table)
         ok_c, ko_c = self.analyze_results(self.results)
-        print "%s%s%s" % ("-"*72, " Summary ", "-"*72)
+        print("%s%s%s" % ("-"*72, " Summary ", "-"*72))
         row_format = "{0:>1}{1:<30}{2:<40}"
         rows = ""
         rows += row_format.format("", *["No of hosts", (ok_c + ko_c)])
@@ -324,14 +324,14 @@ class OpenTSDBWhiteBox(PndaPlugin):
         rows += "\n" + row_format.format("", *["No of hosts(ok)", ok_c])
         rows += "\n" + row_format.format("", *["No of hosts(ko)", ko_c])
         rows += "\n" + row_format.format("", *["-"*62, ""])
-        print rows
-        print "%s%s%s" % ("-"*68, " Overall Status ", "-"*68)
+        print(rows)
+        print("%s%s%s" % ("-"*68, " Overall Status ", "-"*68))
         table = PrettyTable(["Timestamp", "Source", "Metric", "Cause", "Value"])
         table.align = "l"
         for row in results:
             if ".health" in row[2]and "tsd.hosts" not in row[2]:
                 table.add_row([row[0], row[1], row[2], row[3], row[4]])
-        print table
+        print(table)
 
     def runner(self, args, display=True):
         """
