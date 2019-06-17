@@ -55,7 +55,14 @@ class ZkClient(object):
                                   timeout=2.01,
                                   max_retries=0,
                                   read_only=True)
-        self._internal_endpoint_regex = re.compile(r'^INTERNAL_PLAINTEXT://(.*):([0-9]+)$')
+        self._internal_endpoint_regex = re.compile(r'^PLAINTEXT://(.*):([0-9]+)$')
+
+    def __enter__(self):
+        self.client.start(timeout=self.default_zk_timeout)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.client.stop()
 
     @classmethod
     def _zjoin(cls, parts):
@@ -67,7 +74,7 @@ class ZkClient(object):
         and get child info
         '''
         details = {}
-        self.client.start(timeout=self.default_zk_timeout)
+
         if path:
             children = self.client.get_children(path)
             for child in children:
@@ -81,7 +88,6 @@ class ZkClient(object):
                         self.host,
                         self.port,
                         child_path)
-        self.client.stop()
 
         return details
 

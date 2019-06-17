@@ -311,18 +311,18 @@ class KafkaWhitebox(PndaPlugin):
                     bconnect += ","
                 bconnect += "%s:%d" % (host, port)
                 try:
-                    client = ZkClient(host, port)
-                    if client.ping():
-                        node_list.append(ZkNode(host, port, True))
-                        zok += 1
-                    else:
-                        if berror != "":
-                            berror += ","
-                        berror += "%s:%d" % (host, port)
-                        node_list.append(ZkNode(host, port, False))
-                        zko += 1
-                        LOGGER.error(
-                            "Zookeeper node unreachable (%s:%d)", host, port)
+                    with ZkClient(host, port) as client:
+                        if client.ping():
+                            node_list.append(ZkNode(host, port, True))
+                            zok += 1
+                        else:
+                            if berror != "":
+                                berror += ","
+                            berror += "%s:%d" % (host, port)
+                            node_list.append(ZkNode(host, port, False))
+                            zko += 1
+                            LOGGER.error(
+                                "Zookeeper node unreachable (%s:%d)", host, port)
                 except ZkError:
                     LOGGER.error(
                         "Zookeeper node unreachable (%s:%d)", host, port)
@@ -413,10 +413,10 @@ class KafkaWhitebox(PndaPlugin):
         # todo see brokerID
         jmx_config = json.load(open("%s/%s" % (HERE, "jmx_config.json")))
         self.results.append(Event(TIMESTAMP_MILLIS(),
-                                 'kafka',
-                                 'kafka.available.topics',
-                                 [],
-                                 '%s' % (map(str, self.topic_list))))
+                                  'kafka',
+                                  'kafka.available.topics',
+                                  [],
+                                  json.dumps(self.topic_list)))
 
         for broker_index in range(1, len(self.broker_list) + 1):
             broker = self.broker_list[broker_index - 1]
@@ -518,16 +518,18 @@ class KafkaWhitebox(PndaPlugin):
             LOGGER.debug("processing %s:%d", zkn.host, zkn.port)
             if zkn.alive is True:
                 try:
-                    client = ZkClient(zkn.host, zkn.port)
-                    brokers = client.brokers()
-                    topics = client.topics()
-                    for topic in topics:
-                        if not topic.id in self.topic_list:
-                            self.topic_list.append(topic.id)
-                            LOGGER.debug(
-                                "adding %s to the topic list", topic.id)
+                    with ZkClient(zkn.host, zkn.port) as client:
+                        brokers = client.brokers()
+                        topics = client.topics()
 
-                    zk_data = self.process(zknodes, brokers, topics)
+                        for topic in topics:
+                            LOGGER.error(topic.id)
+                            if not topic.id in self.topic_list:
+                                self.topic_list.append(topic.id)
+                                LOGGER.debug(
+                                    "adding %s to the topic list", topic.id)
+
+                        zk_data = self.process(zknodes, brokers, topics)
                 except ZkError as exc:
                     LOGGER.error('Failed to access Zookeeper: %s', str(exc))
                     break

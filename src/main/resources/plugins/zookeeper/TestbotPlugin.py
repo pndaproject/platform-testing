@@ -124,18 +124,18 @@ def getzknodes(zconnect):
                 bconnect += ","
             bconnect += "%s:%d" % (host, port)
             try:
-                client = ZkClient(host, port)
-                if client.ping():
-                    seq.append(ZkNode(host, port, True))
-                    zok += 1
-                else:
-                    if berror != "":
-                        berror += ","
-                    berror += "%s:%d" % (host, port)
-                    seq.append(ZkNode(host, port, False))
-                    zko += 1
-                    LOGGER.error(
-                        "Zookeeper node unreachable (%s:%d)", host, port)
+                with ZkClient(host, port) as client:
+                    if client.ping():
+                        seq.append(ZkNode(host, port, True))
+                        zok += 1
+                    else:
+                        if berror != "":
+                            berror += ","
+                        berror += "%s:%d" % (host, port)
+                        seq.append(ZkNode(host, port, False))
+                        zko += 1
+                        LOGGER.error(
+                            "Zookeeper node unreachable (%s:%d)", host, port)
             except ZkError:
                 LOGGER.error(
                     "Zookeeper node unreachable (%s:%d)", host, port)
