@@ -1,5 +1,5 @@
 NAME=platform-testing
-VERSION=release5.0
+VERSION=latest-py3
 REGISTRY=pnda
 
 build:	## Build the docker image
