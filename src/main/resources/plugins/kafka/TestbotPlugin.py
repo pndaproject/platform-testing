@@ -523,7 +523,6 @@ class KafkaWhitebox(PndaPlugin):
                         topics = client.topics()
 
                         for topic in topics:
-                            LOGGER.error(topic.id)
                             if not topic.id in self.topic_list:
                                 self.topic_list.append(topic.id)
                                 LOGGER.debug(
