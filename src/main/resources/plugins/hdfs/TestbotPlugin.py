@@ -43,6 +43,12 @@ class HDFSPlugin(PndaPlugin): # pylint: disable=too-few-public-methods
                 "blocks_total": "TotalBlocks",
                 "total_dfs_capacity_across_datanodes": "Total",
                 "total_dfs_capacity_used_across_datanodes": "Used"
+            },
+            "Hadoop:service=NameNode,name=NameNodeStatus": {
+                "health": "State"
+            },
+            "Hadoop:service=NameNode,name=JvmMetrics": {
+                "jvm_heap_used_mb": "MemHeapUsedM"
             }
         }
 
@@ -71,7 +77,6 @@ class HDFSPlugin(PndaPlugin): # pylint: disable=too-few-public-methods
         for section in self._metrics:
             uri = 'http://%s:%s/jmx?qry=%s' % (options.host, options.port, section)
             metrics_data = requests.get(uri).json()
-            print(metrics_data)
             metrics_values = metrics_data['beans'][0]
 
             for metric in self._metrics[section]:
@@ -79,6 +84,8 @@ class HDFSPlugin(PndaPlugin): # pylint: disable=too-few-public-methods
                 if metric == 'live_datanodes' or metric == 'dead_datanodes':
                     # special handling to count the number of live / dead datanodes
                     value = len(json.loads(metrics_values[self._metrics[section][metric]]))
+                if metric == 'health':
+                    value = 'OK' if value == 'active' else 'ERROR'
                 events.append(Event(TIMESTAMP_MILLIS(),
                                     'HDFS',
                                     'hadoop.%s.%s' % ('HDFS', metric), [], value))
