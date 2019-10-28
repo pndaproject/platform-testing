@@ -63,8 +63,8 @@ class Prod2Cons(object):
             raise ValueError(
                 "KafkaConsumer (%s:%d) - init failed" % (self.host, self.port))
         try:
-            self.schema = avro.schema.parse(open(schema_path).read())
-        except:
+            self.schema = avro.schema.Parse(open(schema_path).read())
+        except Exception as ex:
             raise ValueError(
                 "Prod2Cons load schema (%s) - init failed" % (schema_path))
 
@@ -96,8 +96,8 @@ class Prod2Cons(object):
         '''
         LOGGER.debug("prod2cons - start producer")
         writer = avro.io.DatumWriter(self.schema)
-        for i in xrange(self.nbmsg):
-            rawdata = "%s|%s" % (self.runtag, str(i))
+        for i in range(self.nbmsg):
+            rawdata = ("%s|%s" % (self.runtag, str(i))).encode('utf8')
             bytes_writer = io.BytesIO()
             encoder = avro.io.BinaryEncoder(bytes_writer)
             writer.write({"timestamp": TIMESTAMP_MILLIS(),
@@ -130,7 +130,7 @@ class Prod2Cons(object):
                 decoder = avro.io.BinaryDecoder(bytes_reader)
                 reader = avro.io.DatumReader(self.schema)
                 msg = reader.read(decoder)
-                rawsplit = msg['rawdata'].split('|')
+                rawsplit = msg['rawdata'].decode('utf8').split('|')
                 LOGGER.info("consumer message [%s] - runtag is [%s] - offset is [%d]",
                             msg['rawdata'],
                             self.runtag, message.offset)

@@ -93,6 +93,8 @@ class KafkaWhitebox(PndaPlugin):
             usage='%(prog)s [options]',
             description='Show state of Zk-Kafka cluster',
             add_help=False)
+        parser.add_argument('--jmxproxy', default='127.0.0.1:8000',
+                            help='host:port of the jmxproxy to use')
         parser.add_argument('--brokerlist', default='localhost:9092',
                             help='comma separated host:port pairs, each corresponding to ' + \
           'a kafka broker (default: localhost:9092)')
@@ -112,9 +114,9 @@ class KafkaWhitebox(PndaPlugin):
             for jmx_data in ["RateUnit", "OneMinuteRate", \
                              "EventType", "Count", "FifteenMinuteRate",
                              "FiveMinuteRate", "MeanRate"]:
-                url_jmxproxy = ("http://127.0.0.1:8000/jmxproxy/%s/"
+                url_jmxproxy = ("http://%s/jmxproxy/%s/"
                                 "kafka.server:type=BrokerTopicMetrics,"
-                                "name=%s,topic=%s/%s") % (host, jmx_path_name, topic, jmx_data)
+                                "name=%s,topic=%s/%s") % (self.jmxproxy, host, jmx_path_name, topic, jmx_data)
 
                 response = requests.get(url_jmxproxy)
                 if response.status_code == 200:
@@ -145,9 +147,9 @@ class KafkaWhitebox(PndaPlugin):
         '''
         Get activecontrollercount
         '''
-        url_jmxproxy = ("http://127.0.0.1:8000/jmxproxy/%s/"
+        url_jmxproxy = ("http://%s/jmxproxy/%s/"
                         "kafka.controller:type=KafkaController,"
-                        "name=ActiveControllerCount/Value") % host
+                        "name=ActiveControllerCount/Value") % (self.jmxproxy, host)
 
         response = requests.get(url_jmxproxy)
         if response.status_code == 200:
@@ -179,9 +181,9 @@ class KafkaWhitebox(PndaPlugin):
                          "FifteenMinuteRate",
                          "FiveMinuteRate",
                          "MeanRate"]:
-            url_jmxproxy = ("http://127.0.0.1:8000/jmxproxy/%s/"
+            url_jmxproxy = ("http://%s/jmxproxy/%s/"
                             "kafka.controller:type=ControllerStats,"
-                            "name=UncleanLeaderElectionsPerSec/%s") % (host, jmx_data)
+                            "name=UncleanLeaderElectionsPerSec/%s") % (self.jmxproxy, host, jmx_data)
 
             response = requests.get(url_jmxproxy)
             if response.status_code == 200:
@@ -220,7 +222,7 @@ class KafkaWhitebox(PndaPlugin):
             if obj.partitions["valid"] is True:
                 for parts in parts_object:
                     # Get the partition leader
-                    for part, partinfo in parts.iteritems():
+                    for part, partinfo in parts.items():
                         leader_read = partinfo['leader']
                         broker = get_broker_by_id(
                             gbrokers, '%d' % leader_read)
@@ -309,18 +311,18 @@ class KafkaWhitebox(PndaPlugin):
                     bconnect += ","
                 bconnect += "%s:%d" % (host, port)
                 try:
-                    client = ZkClient(host, port)
-                    if client.ping():
-                        node_list.append(ZkNode(host, port, True))
-                        zok += 1
-                    else:
-                        if berror != "":
-                            berror += ","
-                        berror += "%s:%d" % (host, port)
-                        node_list.append(ZkNode(host, port, False))
-                        zko += 1
-                        LOGGER.error(
-                            "Zookeeper node unreachable (%s:%d)", host, port)
+                    with ZkClient(host, port) as client:
+                        if client.ping():
+                            node_list.append(ZkNode(host, port, True))
+                            zok += 1
+                        else:
+                            if berror != "":
+                                berror += ","
+                            berror += "%s:%d" % (host, port)
+                            node_list.append(ZkNode(host, port, False))
+                            zko += 1
+                            LOGGER.error(
+                                "Zookeeper node unreachable (%s:%d)", host, port)
                 except ZkError:
                     LOGGER.error(
                         "Zookeeper node unreachable (%s:%d)", host, port)
@@ -411,18 +413,17 @@ class KafkaWhitebox(PndaPlugin):
         # todo see brokerID
         jmx_config = json.load(open("%s/%s" % (HERE, "jmx_config.json")))
         self.results.append(Event(TIMESTAMP_MILLIS(),
-                                 'kafka',
-                                 'kafka.available.topics',
-                                 [],
-                                 '%s' % (map(str, self.topic_list))))
+                                  'kafka',
+                                  'kafka.available.topics',
+                                  [],
+                                  json.dumps(self.topic_list)))
 
-        for broker_index in xrange(1, len(self.broker_list) + 1):
+        for broker_index in range(1, len(self.broker_list) + 1):
             broker = self.broker_list[broker_index - 1]
             for topic in self.topic_list:
                 self.get_brokertopicmetrics(broker, topic, broker_index)
                 for jmx_data in jmx_config["mBeans"]:
-                    url_jmxproxy = "http://127.0.0.1:8000/jmxproxy/" + \
-                    "%s/%s" % (broker, jmx_data["path"])
+                    url_jmxproxy = "http://%s/jmxproxy/%s/%s" % (self.jmxproxy, broker, jmx_data["path"])
                     LOGGER.info(url_jmxproxy)
                     response = requests.get(url_jmxproxy)
                     if response.status_code == 200:
@@ -462,34 +463,34 @@ class KafkaWhitebox(PndaPlugin):
                     part.partId, part.alive])
 
         if zk_data:
-            print table.get_string(sortby='Broker')
-            print
-            print 'List of brokers:            %s' % zk_data.list_brokers
-            print 'List of brokers (ko):       %s' % zk_data.list_brokers_ko
-            print 'Number of brokers (ok):     %d' % zk_data.num_brokers_ok
-            print 'Number of brokers (ko):     %d' % zk_data.num_brokers_ko
-            print 'List of zk:                 %s' % zk_data.list_zk
-            print 'List of zk (ko):            %s' % zk_data.list_zk_ko
-            print 'Number of zk nodes (ok):    %d' % zk_data.num_zk_ok
-            print 'Number of zk nodes (ko):    %d' % zk_data.num_zk_ko
-            print 'Number of partitions (ok):  %d' % zk_data.num_part_ok
-            print 'Number of partitions (ko):  %d' % zk_data.num_part_ko
-            print 'Number of partitions:       %d' % zk_data.num_partitions
-            print 'Run (total):                %d' % NBTEST
-            print 'Run (sent):                 %d' % test_result.sent
-            print 'Run (rcv):                  %d' % test_result.received
-            print 'Run (total):                %d' % test_result.notvalid
-            print 'Run (avg ms):               %d' % test_result.avg_ms
+            print(table.get_string(sortby='Broker'))
+            print()
+            print('List of brokers:            %s' % zk_data.list_brokers)
+            print('List of brokers (ko):       %s' % zk_data.list_brokers_ko)
+            print('Number of brokers (ok):     %d' % zk_data.num_brokers_ok)
+            print('Number of brokers (ko):     %d' % zk_data.num_brokers_ko)
+            print('List of zk:                 %s' % zk_data.list_zk)
+            print('List of zk (ko):            %s' % zk_data.list_zk_ko)
+            print('Number of zk nodes (ok):    %d' % zk_data.num_zk_ok)
+            print('Number of zk nodes (ko):    %d' % zk_data.num_zk_ko)
+            print('Number of partitions (ok):  %d' % zk_data.num_part_ok)
+            print('Number of partitions (ko):  %d' % zk_data.num_part_ko)
+            print('Number of partitions:       %d' % zk_data.num_partitions)
+            print('Run (total):                %d' % NBTEST)
+            print('Run (sent):                 %d' % test_result.sent)
+            print('Run (rcv):                  %d' % test_result.received)
+            print('Run (total):                %d' % test_result.notvalid)
+            print('Run (avg ms):               %d' % test_result.avg_ms)
 
-        print '-' * 50
-        print 'overall status: ',
-        print "OK" if results_summary.value == MonitorStatus["green"] else \
+        print('-' * 50)
+        print('overall status:',
+              "OK" if results_summary.value == MonitorStatus["green"] else \
               "WARN" if results_summary.value == MonitorStatus["amber"] else \
-              "ERROR"
+              "ERROR")
         if results_summary.value != MonitorStatus["green"]:
-            print 'causes:'
-            print results_summary.causes
-        print '-' * 50
+            print('causes:')
+            print(results_summary.causes)
+        print('-' * 50)
         LOGGER.debug("do_display finished")
 
     def runner(self, args, display=True):
@@ -506,6 +507,7 @@ class KafkaWhitebox(PndaPlugin):
 
         self.broker_list = options.brokerlist.split(",")
         self.prod2cons = options.prod2cons
+        self.jmxproxy = options.jmxproxy
 
         zknodes = self.getzknodes(options.zkconnect)
         LOGGER.debug(zknodes)
@@ -516,20 +518,21 @@ class KafkaWhitebox(PndaPlugin):
             LOGGER.debug("processing %s:%d", zkn.host, zkn.port)
             if zkn.alive is True:
                 try:
-                    client = ZkClient(zkn.host, zkn.port)
-                    brokers = client.brokers()
-                    topics = client.topics()
-                    for topic in topics:
-                        if not topic.id in self.topic_list:
-                            self.topic_list.append(topic.id)
-                            LOGGER.debug(
-                                "adding %s to the topic list", topic.id)
+                    with ZkClient(zkn.host, zkn.port) as client:
+                        brokers = client.brokers()
+                        topics = client.topics()
 
-                    zk_data = self.process(zknodes, brokers, topics)
-                except ZkError, exc:
+                        for topic in topics:
+                            if not topic.id in self.topic_list:
+                                self.topic_list.append(topic.id)
+                                LOGGER.debug(
+                                    "adding %s to the topic list", topic.id)
+
+                        zk_data = self.process(zknodes, brokers, topics)
+                except ZkError as exc:
                     LOGGER.error('Failed to access Zookeeper: %s', str(exc))
                     break
-                except ProcessorError, exc:
+                except ProcessorError as exc:
                     LOGGER.error('Failed to process: %s', str(exc))
                     break
                 if prev_zk_data is not None:

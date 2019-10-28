@@ -1,2 +1,2 @@
-kafka-python==1.3.5
-kazoo==2.2.1
+kafka-python==1.4.6
+kazoo==2.6.1
