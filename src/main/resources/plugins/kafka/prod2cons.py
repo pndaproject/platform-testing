@@ -46,7 +46,6 @@ class Prod2Cons(object):
         self.sent = [-100] * self.nbmsg
         self.rcv = [-100] * self.nbmsg
         self.runtag = str(random.randint(10, 100000))
-        self.topicpartition = TopicPartition(self.topic, 0)
         try:
             self.producer = KafkaProducer(bootstrap_servers=["%s:%d" % (self.host, self.port)], acks='all')
         except:
@@ -56,9 +55,7 @@ class Prod2Cons(object):
             self.consumer = KafkaConsumer(group_id='testbot-group',
                                           bootstrap_servers=["%s:%d" % (self.host, self.port)],
                                           consumer_timeout_ms=30000)
-            self.consumer.assign([self.topicpartition])
-            self.offset = self.consumer.committed(self.topicpartition)
-            LOGGER.info("consumer reset new offset is [%d]", self.offset)
+            self.consumer.subscribe(topics=[self.topic])
         except:
             raise ValueError(
                 "KafkaConsumer (%s:%d) - init failed" % (self.host, self.port))
