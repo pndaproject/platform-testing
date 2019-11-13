@@ -25,9 +25,8 @@ import logging
 import avro.schema
 import avro.io
 
-from kafka.client import KafkaClient
-from kafka.consumer import SimpleConsumer
-from kafka.producer import SimpleProducer
+from kafka import KafkaConsumer, TopicPartition
+from kafka import KafkaProducer
 
 from plugins.common.defcom import TestbotResult
 
@@ -38,7 +37,7 @@ class Prod2Cons(object):
     '''
     Implements blackbox producer & consumer test to/from Kafka
     '''
-    def __init__(self, host, port, schema_path, topic, nbmsg, consumer_timeout):
+    def __init__(self, host, port, schema_path, topic, nbmsg):
         self.topic = topic
         self.nbmsg = nbmsg
         self.sent_msg = 0
@@ -48,24 +47,21 @@ class Prod2Cons(object):
         self.rcv = [-100] * self.nbmsg
         self.runtag = str(random.randint(10, 100000))
         try:
-            self.broker = KafkaClient("%s:%d" % (self.host, self.port))
+            self.producer = KafkaProducer(bootstrap_servers=["%s:%d" % (self.host, self.port)], acks='all')
         except:
             raise ValueError(
-                "KafkaClient (%s:%d) - init failed" % (self.host, self.port))
+                "KafkaProducer (%s:%d) - init failed" % (self.host, self.port))
         try:
-            self.producer = SimpleProducer(self.broker)
+            self.consumer = KafkaConsumer(group_id='testbot-group',
+                                          bootstrap_servers=["%s:%d" % (self.host, self.port)],
+                                          consumer_timeout_ms=30000)
+            self.consumer.subscribe(topics=[self.topic])
         except:
             raise ValueError(
-                "SimpleProducer (%s:%d) - init failed" % (self.host, self.port))
+                "KafkaConsumer (%s:%d) - init failed" % (self.host, self.port))
         try:
-            self.consumer = SimpleConsumer(
-                self.broker, "testbot", topic, iter_timeout=consumer_timeout)
-        except:
-            raise ValueError(
-                "SimpleConsumer (%s:%d) - init failed" % (self.host, self.port))
-        try:
-            self.schema = avro.schema.parse(open(schema_path).read())
-        except:
+            self.schema = avro.schema.Parse(open(schema_path).read())
+        except Exception as ex:
             raise ValueError(
                 "Prod2Cons load schema (%s) - init failed" % (schema_path))
 
@@ -97,8 +93,8 @@ class Prod2Cons(object):
         '''
         LOGGER.debug("prod2cons - start producer")
         writer = avro.io.DatumWriter(self.schema)
-        for i in xrange(self.nbmsg):
-            rawdata = "%s|%s" % (self.runtag, str(i))
+        for i in range(self.nbmsg):
+            rawdata = ("%s|%s" % (self.runtag, str(i))).encode('utf8')
             bytes_writer = io.BytesIO()
             encoder = avro.io.BinaryEncoder(bytes_writer)
             writer.write({"timestamp": TIMESTAMP_MILLIS(),
@@ -108,15 +104,9 @@ class Prod2Cons(object):
                          encoder)
             raw_bytes = bytes_writer.getvalue()
             self.add_sent(i)
-            self.producer.send_messages(self.topic, raw_bytes)
+            self.producer.send(self.topic, raw_bytes)
             self.sent_msg += 1
-        return 0
-
-    def consumer_reset(self):
-        '''
-           Indicate to restart from the most recent offset
-        '''
-        self.consumer.seek(0, 2)
+        return self.sent_msg
 
     def cons(self):
         '''
@@ -130,25 +120,34 @@ class Prod2Cons(object):
         # time.sleep(2) added for a local test for checking lond delay display
         for message in self.consumer:
             readcount += 1
+            self.consumer.commit()
             try:
-                newmessage = message[1][3]
+                newmessage = message.value
                 bytes_reader = io.BytesIO(newmessage)
                 decoder = avro.io.BinaryDecoder(bytes_reader)
                 reader = avro.io.DatumReader(self.schema)
                 msg = reader.read(decoder)
-                rawsplit = msg['rawdata'].split('|')
+                rawsplit = msg['rawdata'].decode('utf8').split('|')
+                LOGGER.info("consumer message [%s] - runtag is [%s] - offset is [%d]",
+                            msg['rawdata'],
+                            self.runtag, message.offset)
                 if rawsplit[0] == self.runtag:
                     readvalid += 1
                     self.add_rcv(int(rawsplit[1]))
                 else:
                     readnotvalid += 1
-                    LOGGER.error("consumer  reads unexpected message [%s] - runtag is [%s]",
+                    LOGGER.error("consumer error message [%s] - runtag is [%s] - offset is [%d]",
                                  msg['rawdata'],
-                                 self.runtag)
+                                 self.runtag, message.offset)
+
 
             except:
                 LOGGER.error("prod2cons - consumer failed")
                 raise Exception("consumer failed")
+
+            if self.nbmsg == readcount:
+                LOGGER.debug("prod2cons - done with reading")
+                break
 
         if readcount == self.nbmsg and readvalid == self.nbmsg:
             LOGGER.debug("consumer : test run ok")

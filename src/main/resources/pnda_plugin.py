@@ -55,7 +55,7 @@ class PndaPlugin(object):
         for event in events:
             table.add_row([event.timestamp, event.source, event.metric, event.causes, event.value])
 
-        print table.get_string(sortby='Time')
+        print(table.get_string(sortby='Time'))
 
 
     def runner(self, args, display=True):

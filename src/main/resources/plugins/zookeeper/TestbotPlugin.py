@@ -22,23 +22,20 @@ import sys
 import os
 import logging
 import time
-
+import math
 from prettytable import PrettyTable
-
 from pnda_plugin import PndaPlugin
 from pnda_plugin import Event
 from pnda_plugin import MonitorStatus
-
 from plugins.common.zkclient import ZkClient, ZkError
 from plugins.common.defcom import ZkNodesHealth, ZkNode, ZkMonitorSummary
 
 sys.path.insert(0, '../..')
 
-TestbotPlugin = lambda: ZookeeperBot() # pylint: disable=invalid-name
-
+TESTBOTPLUGIN = lambda: ZookeeperBot()
 TIMESTAMP_MILLIS = lambda: int(time.time() * 1000)
 HERE = os.path.abspath(os.path.dirname(__file__))
-LOGGER = logging.getLogger("TestbotPlugin")
+LOGGER = logging.getLogger("TESTBOTPLUGIN")
 
 def do_display(results_summary, zk_data, zknodes=ZkNodesHealth(-1, -1, -1, -1, -1)):
     '''
@@ -52,27 +49,27 @@ def do_display(results_summary, zk_data, zknodes=ZkNodesHealth(-1, -1, -1, -1, -
     table = PrettyTable(['Zookeeper', 'Port', 'Id', 'other', 'Valid'])
     table.align['zookeeper'] = 'l'
 
-    if zk_data and len(zk_data.list_zk) > 0:
+    if zk_data and zk_data.list_zk:
         for node in zknodes.list:
             table.add_row([node.host, node.port, "", "", node.alive])
 
     if zk_data:
-        print table.get_string(sortby='Zookeeper')
-        print
-        print 'List of zk:                 %s' % zk_data.list_zk
-        print 'List of zk (ko):            %s' % zk_data.list_zk_ko
-        print 'Number of zk nodes (ok):    %d' % zk_data.num_zk_ok
-        print 'Number of zk nodes (ko):    %d' % zk_data.num_zk_ko
+        print(table.get_string(sortby='Zookeeper'))
+        print()
+        print('List of zk:                 %s' % zk_data.list_zk)
+        print('List of zk (ko):            %s' % zk_data.list_zk_ko)
+        print('Number of zk nodes (ok):    %d' % zk_data.num_zk_ok)
+        print('Number of zk nodes (ko):    %d' % zk_data.num_zk_ko)
 
-    print '-' * 50
-    print 'overall status: ',
-    print "OK" if results_summary.value == MonitorStatus["green"] else \
+    print('-' * 50)
+    print('overall status:',
+          "OK" if results_summary.value == MonitorStatus["green"] else \
           "WARN" if results_summary.value == MonitorStatus["amber"] else \
-          "ERROR"
+          "ERROR")
     if results_summary.value != MonitorStatus["green"]:
-        print 'causes:'
-        print results_summary.causes
-    print '-' * 50
+        print('causes:')
+        print(results_summary.causes)
+    print('-' * 50)
     LOGGER.debug("do_display finished")
 
 def analyse_results(zk_data, zk_election):
@@ -85,12 +82,17 @@ def analyse_results(zk_data, zk_election):
     analyse_status = MonitorStatus["green"]
     analyse_causes = []
     analyse_metric = 'zookeeper.health'
+    zk_majority = int(math.ceil(float(len(zk_data.list_zk.split(",")))/2))
 
-    if zk_data and len(zk_data.list_zk_ko) > 0:
-        LOGGER.error("analyse_results : at least one zookeeper node failed")
-        analyse_status = MonitorStatus["red"]
-        analyse_causes.append(
-            "zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
+    if zk_data and zk_data.list_zk_ko:
+        if zk_data.num_zk_ok >= zk_majority:
+            LOGGER.warn("analyse_results : at least one zookeeper node failed")
+            analyse_status = MonitorStatus["amber"]
+            analyse_causes.append("zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
+        else:
+            LOGGER.error("analyse_results : at least one zookeeper node failed")
+            analyse_status = MonitorStatus["red"]
+            analyse_causes.append("zookeeper node(s) unreachable (%s)" % zk_data.list_zk_ko)
     elif zk_election is False:
         LOGGER.error("analyse_results : zookeeper election not done, check nodes mode")
         analyse_status = MonitorStatus["red"]
@@ -122,18 +124,18 @@ def getzknodes(zconnect):
                 bconnect += ","
             bconnect += "%s:%d" % (host, port)
             try:
-                client = ZkClient(host, port)
-                if client.ping():
-                    seq.append(ZkNode(host, port, True))
-                    zok += 1
-                else:
-                    if berror != "":
-                        berror += ","
-                    berror += "%s:%d" % (host, port)
-                    seq.append(ZkNode(host, port, False))
-                    zko += 1
-                    LOGGER.error(
-                        "Zookeeper node unreachable (%s:%d)", host, port)
+                with ZkClient(host, port) as client:
+                    if client.ping():
+                        seq.append(ZkNode(host, port, True))
+                        zok += 1
+                    else:
+                        if berror != "":
+                            berror += ","
+                        berror += "%s:%d" % (host, port)
+                        seq.append(ZkNode(host, port, False))
+                        zko += 1
+                        LOGGER.error(
+                            "Zookeeper node unreachable (%s:%d)", host, port)
             except ZkError:
                 LOGGER.error(
                     "Zookeeper node unreachable (%s:%d)", host, port)
@@ -202,12 +204,12 @@ class ZookeeperBot(PndaPlugin):
             num_zk_ko=zknodes.num_ko
         )
 
-    def runner(self, pluginargs, display=True):
+    def runner(self, args, display=True):
         '''
             Main section.
         '''
         LOGGER.debug("runner started")
-        array_args = pluginargs.split(" ")
+        array_args = args.split(" ")
         options = self.read_args(array_args)
         self.zconnect = options.zconnect
         self.display = display
@@ -222,19 +224,27 @@ class ZookeeperBot(PndaPlugin):
             if zkn.alive is True:
                 try:
                     zk_data = self.process(zknodes)
-                    zkelect = os.popen("echo stat | nc %s %s | grep Mode" % (zkn.host, zkn.port)).read().replace("Mode: ", "").rstrip('\r\n')
+                    zkelect = os.popen("echo stat | nc %s %s | grep Mode" %
+                                       (zkn.host, zkn.port)) \
+                                       .read().replace("Mode: ", "") \
+                                       .rstrip('\r\n')
                     if zkelect == "leader" or zkelect == "standalone":
                         zk_election = True
                     self.results.append(Event(TIMESTAMP_MILLIS(),
                                               'zookeeper',
                                               'zookeeper.%d.mode' % (zid), [], zkelect)
                                        )
-                except ZkError, ex:
+                except ZkError as ex:
                     LOGGER.error('Failed to access Zookeeper: %s', str(ex))
                     break
-                except ProcessorError, ex:
+                except ProcessorError as ex:
                     LOGGER.error('Failed to process: %s', str(ex))
                     break
+            else:
+                self.results.append(Event(TIMESTAMP_MILLIS(),
+                                          'zookeeper',
+                                          'zookeeper.%d.mode' % (zid), [], MonitorStatus["red"])
+                                   )
             zid += 1
         if not zk_data:
             zk_data = ZkMonitorSummary(

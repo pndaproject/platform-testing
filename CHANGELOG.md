@@ -3,6 +3,35 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0] 2018-08-28
+### Added
+- PNDA-4431: Add basic platform test for Flink in PNDA
+- PNDA-4754: Add new metric for list of available kafka topics
+
+### Changed
+- PNDA-4408: Use kafka-python 1.3.5 in kafka test module
+- PNDA-4481: Change Zookeeper status once loosing nodes when there is a zk quorum
+- PNDA-4673: Use JDBC instead of PyHive to query Hive because PyHive does not support HTTP transport
+- PNDA-4729: Remove unused per-topic health metric
+- PNDA-4899: Introduce conditionality to produce build/mirror with only artefacts required
+
+### Fixed
+- PNDA-4106: Console not reflecting which zookeeper is lost
+- PNDA-4223: Limit data read in test by specifying end timestamp
+- PNDA-4702: Mock popen to prevent unit tests attempting to use nc which may not be installed
+- PNDA-4714: Clean up hive connection resources
+
+## [0.5.0] 2018-02-10
+### Added
+- PNDA-3391: Add more metrics to kafka plugin which is now managed in a by a JMX config file
+
+### Changed
+- PNDA-3601: Disable emailtext in Jenkins file and replace it with notifier stage and job
+- PNDA-2282: Improved error reporting for Deployment Manager tests
+
+### Fixed
+- PNDA-3257: Code quality improvements
+
 ## [0.4.0] 2017-11-24
 ### Added
 - PNDA-ISSUE-42: opentsdb platform test to return empty list in causes field for good health in opentsdb.health metric

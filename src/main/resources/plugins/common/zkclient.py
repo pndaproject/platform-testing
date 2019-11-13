@@ -55,7 +55,14 @@ class ZkClient(object):
                                   timeout=2.01,
                                   max_retries=0,
                                   read_only=True)
-        self._internal_endpoint_regex = re.compile(r'^INTERNAL_PLAINTEXT://(.*):([0-9]+)$')
+        self._internal_endpoint_regex = re.compile(r'^PLAINTEXT://(.*):([0-9]+)$')
+
+    def __enter__(self):
+        self.client.start(timeout=self.default_zk_timeout)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.client.stop()
 
     @classmethod
     def _zjoin(cls, parts):
@@ -67,7 +74,7 @@ class ZkClient(object):
         and get child info
         '''
         details = {}
-        self.client.start(timeout=self.default_zk_timeout)
+
         if path:
             children = self.client.get_children(path)
             for child in children:
@@ -81,7 +88,6 @@ class ZkClient(object):
                         self.host,
                         self.port,
                         child_path)
-        self.client.stop()
 
         return details
 
@@ -111,13 +117,13 @@ class ZkClient(object):
         seq = []
         vroot = '/brokers/topics'
         try:
-            for topic in self.generic_zk_list(vroot).iterkeys():
+            for topic in self.generic_zk_list(vroot).keys():
                 partitions = []
                 try:
                     for part in self.generic_zk_list( \
-                        self._zjoin([vroot, topic, 'partitions'])).iterkeys():
+                        self._zjoin([vroot, topic, 'partitions'])).keys():
                         for part_value in self.generic_zk_list( \
-                self._zjoin([vroot, topic, 'partitions', part])).itervalues():
+                self._zjoin([vroot, topic, 'partitions', part])).values():
 
                             val = json.loads(part_value)
                             partitions.append(\
@@ -164,7 +170,7 @@ class ZkClient(object):
         bconnect = ""
         berror = ""
         try:
-            for kkey, kkinfo in self.generic_zk_list(vroot).iteritems():
+            for kkey, kkinfo in self.generic_zk_list(vroot).items():
                 # Let's check the broker is alive
                 endpoint = self._parse_endpoint_data(kkinfo)
                 if endpoint is not None:
@@ -173,7 +179,7 @@ class ZkClient(object):
                         bconnect += ","
                     bconnect += "%s:%d" % (host, port)
                     try:
-                        k = KafkaClient("%s:%d" % (host, port))
+                        k = KafkaClient(bootstrap_servers="%s:%d" % (host, port))
                         if k is not None:
                             seq.append(KkBrokers(kkey, host, port, jmx, True))
                             bok += 1

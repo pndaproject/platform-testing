@@ -12,7 +12,8 @@
                 <include>plugins/kafka*/**</include>
                 <include>plugins/zookeeper*/**</include>
                 <include>plugins/dm*/**</include>
-                <include>plugins/common/**</include>                
+                <include>plugins/common/**</include>
+                <include>plugins/flink*/**</include>
                 <include>plugins/__init__*</include>
                 <include>*</include>
             </includes>

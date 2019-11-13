@@ -47,10 +47,10 @@ def load_plugin(plugin_dir):
     try:
         module_name = "%s.TestbotPlugin" % plugin_dir
         module = importlib.import_module(module_name)
-        cls = getattr(module, "TestbotPlugin")
-    except ValueError, ex:
+        cls = getattr(module, "TESTBOTPLUGIN")
+    except ValueError as ex:
         LOGGER.error('Unable to load module %s (%s)', module_name, ex)
-    except TypeError, ex:
+    except TypeError as ex:
         LOGGER.error('Unable to load module %s (%s)', module_name, ex)
 
     return cls()
@@ -92,7 +92,7 @@ class TestbotCollector(object):
             events = []
             try:
                 events = plugin.runner(self._options.extra, self._options.display)
-            except PluginException, ex:
+            except PluginException as ex:
                 logging.error('Plugin threw exception %s', ex)
                 import traceback
                 traceback.print_exc()
@@ -111,7 +111,7 @@ class TestbotCollector(object):
 
         LOGGER.debug("_send started")
 
-        if len(events) > 0:
+        if events:
 
             json_datas = [{
                 "data": [(lambda ev: {

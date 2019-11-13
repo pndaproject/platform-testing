@@ -7,9 +7,8 @@ import time
 import logging
 import sys
 import requests
-
-from prettytable import PrettyTable
 from requests.utils import quote
+from prettytable import PrettyTable
 from pnda_plugin import PndaPlugin, Event, MonitorStatus
 
 #Constants
@@ -22,8 +21,8 @@ DELETE_ENABLED_STATUS = "Deleting data is not enabled"
 
 TIMESTAMP_MILLIS = lambda: int(time.time() * 1000)
 sys.path.insert(0, "../..")
-TestbotPlugin = lambda: OpenTSDBWhiteBox()
-LOGGER = logging.getLogger("TestbotPlugin")
+TESTBOTPLUGIN = lambda: OpenTSDBWhiteBox()
+LOGGER = logging.getLogger("TESTBOTPLUGIN")
 
 class OpenTSDBWhiteBox(PndaPlugin):
     """
@@ -61,7 +60,6 @@ class OpenTSDBWhiteBox(PndaPlugin):
         Api endpoint stats
         """
         msg = []
-        operation = "STATS"
         url = "%s%s%s" % ("http://", host, "/api/stats")
         try:
             response = requests.post(url)
@@ -69,8 +67,6 @@ class OpenTSDBWhiteBox(PndaPlugin):
                 response_dict = json.loads(response.text)
                 for item in response_dict:
                     stat_metric_tag_val = ""
-                    stat_metric_value = item["value"]
-                    stat_metric_name = item["metric"]
                     for key in item.keys():
                         if isinstance(item[key], dict):
                             for subkey in item[key].keys():
@@ -81,22 +77,22 @@ class OpenTSDBWhiteBox(PndaPlugin):
                                         stat_metric_tag_val = "%s.%s.%s" % (stat_metric_tag_val, \
                                         subkey, item[key][subkey])
                     if not stat_metric_tag_val:
-                        metric = "%s.%d.%s" % (METRIC_NAME, index, stat_metric_name)
+                        metric = "%s.%d.%s" % (METRIC_NAME, index, item["metric"])
                     else:
                         metric = "%s.%d.%s.%s" % (METRIC_NAME, index, stat_metric_tag_val, \
-                        stat_metric_name)
+                        item["metric"])
                     self.results.append(Event(TIMESTAMP_MILLIS(), \
-                    "opentsdb", metric, [], stat_metric_value))
+                    "opentsdb", metric, [], item["value"]))
                 return True
             response_dict = json.loads(response.text)
             LOGGER.warning("Unable to fetch stats data error message is %s", \
             response_dict["error"]["message"])
             msg.append(response_dict["error"]["message"])
-            self.process_resp(msg, operation, "0", index)
+            self.process_resp(msg, "STATS", "0", index)
             return False
-        except requests.exceptions.ConnectionError, ex_message:
+        except requests.exceptions.ConnectionError as ex_message:
             LOGGER.warning("Unable to fetch stats data error message is %s", str(ex_message))
-            self.process_resp([str(ex_message)], operation, "0", index)
+            self.process_resp([str(ex_message)], "STATS", "0", index)
             return False
 
     def create_uid(self, host, index):
@@ -108,11 +104,12 @@ class OpenTSDBWhiteBox(PndaPlugin):
         url = "%s%s%s" % ("http://", host, "/api/uid/assign")
         payload = {"metric": [METRIC_NAME], "tagk": [TAGK], "tagv": ["%s.%d" % (TAGV, index)]}
         headers = {"content-type": "application/json"}
+        m_uuid = False
         try:
             response = requests.post(url, data=json.dumps(payload), headers=headers)
             if response.status_code == 200:
                 LOGGER.debug("UID's created for metric, tag_key and tag_value")
-                return True
+                m_uuid = True
             else:
                 response_dict = json.loads(response.text)
                 if response.status_code == 400:
@@ -121,47 +118,43 @@ class OpenTSDBWhiteBox(PndaPlugin):
                         if any(UID_EXISTS in ele for ele in response_dict.\
                         get("tagk_errors").values()):
                             LOGGER.debug("tagk %s value already exist", TAGK)
-                            return True
+                            m_uuid = True
                         else:
                             LOGGER.warning("tagk has error value %s", \
                             response_dict.get("tagk_errors").get(TAGK))
                             msg.append(response_dict.get("tagk_errors").get(TAGK))
                             self.process_resp(msg, operation, "0", index)
-                            return False
                     if "tagv_errors" in response_keys:
                         if any(UID_EXISTS in ele for ele in response_dict.\
                         get("tagv_errors").values()):
                             LOGGER.debug("tagv %s value already exist", "%s.%d" % (TAGV, index))
-                            return True
+                            m_uuid = True
                         else:
                             LOGGER.warning("tagv has error value %s", \
                             response_dict.get("tagv_errors").get("%s.%d" % (TAGV, index)))
                             msg.append(response_dict.get("tagv_errors").get("%s.%d" % \
                             (TAGV, index)))
                             self.process_resp(msg, operation, "0", index)
-                            return False
                     if "metric_errors" in response_keys:
                         if any(UID_EXISTS in ele for ele in response_dict.\
                         get("metric_errors").values()):
                             LOGGER.debug("metric %s value already exist", METRIC_NAME)
-                            return True
+                            m_uuid = True
                         else:
                             LOGGER.warning("metric has error value %s", \
                             response_dict.get("metric_errors").get(METRIC_NAME))
                             msg.append(response_dict.get("metric_errors").get(METRIC_NAME))
                             self.process_resp(msg, operation, "0", index)
-                            return False
                 else:
                     LOGGER.warning("Unable to create UID's for metric, tagk and tagv, \
                     error message is %s", response_dict["error"]["message"])
                     msg.append(response_dict["error"]["message"])
                     self.process_resp(msg, operation, "0", index)
-                    return False
-        except requests.exceptions.ConnectionError, ex_message:
+        except requests.exceptions.ConnectionError as ex_message:
             LOGGER.warning("Unable to create UID's for metric, tagk and tagv, \
             error message is %s", str(ex_message))
             self.process_resp([str(ex_message)], operation, "0", index)
-            return False
+        return m_uuid
 
     def write(self, host, index):
         """
@@ -172,7 +165,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
         if not self.create_uid(host, index):
             return False
         url = "%s%s%s" % ("http://", host, "/api/put")
-        payload = {"metric": METRIC_NAME, "timestamp":int(time.time()), \
+        payload = {"metric": METRIC_NAME, "timestamp": TIMESTAMP_MILLIS(), \
         "value": METRIC_VAL, "tags":{TAGK: "%s.%d" % (TAGV, index)}}
         headers = {"content-type": "application/json"}
         try:
@@ -187,7 +180,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
             response_dict["error"]["message"])
             self.process_resp(msg, operation, "0", index)
             return False
-        except requests.exceptions.ConnectionError, ex_message:
+        except requests.exceptions.ConnectionError as ex_message:
             LOGGER.warning("Unable to write 1, error message is %s", str(ex_message))
             self.process_resp([str(ex_message)], operation, "0", index)
             return False
@@ -199,7 +192,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
         msg = []
         operation = "READ"
         url = "%s%s%s" % ("http://", host, "/api/query")
-        payload = {"start": self.test_start_timestamp, "queries": [{"aggregator": "none", \
+        payload = {"start": self.test_start_timestamp, "end": TIMESTAMP_MILLIS(), "queries": [{"aggregator": "none", \
         "metric": METRIC_NAME, "tags": {TAGK: "%s.%d" % (TAGV, index)}}]}
         headers = {"content-type": "application/json"}
         try:
@@ -214,7 +207,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
             msg.append(response_dict["error"]["message"])
             self.process_resp(msg, operation, "0", index)
             return False
-        except requests.exceptions.ConnectionError, ex_message:
+        except requests.exceptions.ConnectionError as ex_message:
             LOGGER.warning("unable to read in metric %s and error message is %s", \
             METRIC_NAME, str(ex_message))
             self.process_resp([str(ex_message)], operation, "0", index)
@@ -249,7 +242,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
                 msg.append(response_dict["error"]["message"])
                 self.process_resp(msg, operation, "0", index)
                 return False
-        except requests.exceptions.ConnectionError, ex_message:
+        except requests.exceptions.ConnectionError as ex_message:
             LOGGER.warning("Unable to delete value in metric %s and error message is %s", \
             METRIC_NAME, str(ex_message))
             self.process_resp([str(ex_message)], operation, "0", index)
@@ -300,12 +293,11 @@ class OpenTSDBWhiteBox(PndaPlugin):
         ok_c = 0
         ko_c = 0
         for row in results:
-            if "opentsdb.health" not in row[2]:
-		if ".health" in row[2]:
-		    if row[4] == "ERROR":
-			ko_c += 1
-		    else:
-			ok_c += 1
+            if "opentsdb.health" not in row[2] and ".health" in row[2]:
+                if row[4] == "ERROR":
+                    ko_c += 1
+                else:
+                    ok_c += 1
         return ok_c, ko_c
 
     def do_display(self, results, hosts):
@@ -313,7 +305,7 @@ class OpenTSDBWhiteBox(PndaPlugin):
         Pretty display
         """
         LOGGER.debug("do_display start")
-        print "%s%s%s" % ("-"*72, " Status ", "-"*72)
+        print("%s%s%s" % ("-"*72, " Status ", "-"*72))
         table = PrettyTable(["Timestamp", "Source", "Metric", "Cause", "Value"])
         table.align = "l"
         for row in results:
@@ -322,9 +314,9 @@ class OpenTSDBWhiteBox(PndaPlugin):
         for row in results:
             if '.health' not in row[2] and "tsd.hosts" not in row[2]:
                 table.add_row([row[0], row[1], row[2], row[3], row[4]])
-        print table
+        print(table)
         ok_c, ko_c = self.analyze_results(self.results)
-        print "%s%s%s" % ("-"*72, " Summary ", "-"*72)
+        print("%s%s%s" % ("-"*72, " Summary ", "-"*72))
         row_format = "{0:>1}{1:<30}{2:<40}"
         rows = ""
         rows += row_format.format("", *["No of hosts", (ok_c + ko_c)])
@@ -332,21 +324,21 @@ class OpenTSDBWhiteBox(PndaPlugin):
         rows += "\n" + row_format.format("", *["No of hosts(ok)", ok_c])
         rows += "\n" + row_format.format("", *["No of hosts(ko)", ko_c])
         rows += "\n" + row_format.format("", *["-"*62, ""])
-        print rows
-        print "%s%s%s" % ("-"*68, " Overall Status ", "-"*68)
+        print(rows)
+        print("%s%s%s" % ("-"*68, " Overall Status ", "-"*68))
         table = PrettyTable(["Timestamp", "Source", "Metric", "Cause", "Value"])
         table.align = "l"
         for row in results:
             if ".health" in row[2]and "tsd.hosts" not in row[2]:
                 table.add_row([row[0], row[1], row[2], row[3], row[4]])
-        print table
+        print(table)
 
     def runner(self, args, display=True):
         """
         Main section.
         """
         plugin_args = args.split() \
-            if args is not None and (len(args.strip()) > 0) \
+            if args is not None and args.strip() \
             else ""
 
         options = self.read_args(plugin_args)

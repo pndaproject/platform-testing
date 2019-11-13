@@ -14,15 +14,16 @@ node {
             checkout([$class: 'GitSCM', branches: [[name: "tags/${version}"]], extensions: [[$class: 'CleanCheckout']]])
         }
 
-        sh("./build.sh ${version}")
+        sh("./build.sh ${version} HDP")
 
         stage 'Deploy'
         build job: 'deploy', parameters: [[$class: 'StringParameterValue', name: 'artifacts_path', value: "${workspace}/pnda-build"]]
     
-        emailext attachLog: true, body: "Build succeeded (see ${env.BUILD_URL})", subject: "[JENKINS] ${env.JOB_NAME} succeeded", to: "${env.EMAIL_RECIPIENTS}"
+        stage 'Notifier'
+        build job: 'notifier', parameters: [[$class: 'StringParameterValue', name: 'message', value: "${env.JOB_NAME} succeeded: see [Jenkins job ${env.BUILD_ID}](${env.BUILD_URL})"]] 
     }
     catch(error) {
-        emailext attachLog: true, body: "Build failed (see ${env.BUILD_URL})", subject: "[JENKINS] ${env.JOB_NAME} failed", to: "${env.EMAIL_RECIPIENTS}"
+        build job: 'notifier', parameters: [[$class: 'StringParameterValue', name: 'message', value: "${env.JOB_NAME} failed: see [Jenkins job ${env.BUILD_ID}](${env.BUILD_URL})"]]
         currentBuild.result = "FAILED"
         throw error
     }

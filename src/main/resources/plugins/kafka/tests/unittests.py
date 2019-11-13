@@ -35,9 +35,8 @@ class TestKafkaWhitebox(unittest.TestCase):
         values = plugin.runner(("--brokerlist 127.0.0.1:9050 --zkconnect 127.0.0.1:2181"), True)
         self.assertEqual(plugin.topic_list, ['avro.internal.test'])
         self.assertEqual(plugin.broker_list, ['127.0.0.1:9050'])
-        self.assertEqual(plugin.zk_list, ['127.0.0.1:2181'])
 
-        self.assertEqual(71, len(values))
+        self.assertEqual(78, len(values))
         i = 6
 
         for jmx_path_name in ["BytesInPerSec", "BytesOutPerSec",
