@@ -98,6 +98,8 @@ class KafkaWhitebox(PndaPlugin):
         parser.add_argument('--brokerlist', default='localhost:9092',
                             help='comma separated host:port pairs, each corresponding to ' + \
           'a kafka broker (default: localhost:9092)')
+        parser.add_argument('--scheme', default='PLAINTEXT',
+                            help='Kafka broker listener scheme (default: PLAINTEXT)')
         parser.add_argument('--zkconnect', default='localhost:2181',
                             help='comma separated host:port pairs, each corresponding to a ' + \
                             'zk host (default: localhost:2181)')
@@ -506,9 +508,10 @@ class KafkaWhitebox(PndaPlugin):
         options = self.read_args(plugin_args)
 
         self.broker_list = options.brokerlist.split(",")
+        self.scheme = options.scheme
         self.prod2cons = options.prod2cons
         self.jmxproxy = options.jmxproxy
-
+        
         zknodes = self.getzknodes(options.zkconnect)
         LOGGER.debug(zknodes)
         prev_zk_data = None
@@ -518,7 +521,7 @@ class KafkaWhitebox(PndaPlugin):
             LOGGER.debug("processing %s:%d", zkn.host, zkn.port)
             if zkn.alive is True:
                 try:
-                    with ZkClient(zkn.host, zkn.port) as client:
+                    with ZkClient(zkn.host, zkn.port, self.scheme) as client:
                         brokers = client.brokers()
                         topics = client.topics()
 
