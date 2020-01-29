@@ -47,15 +47,16 @@ class ZkClient(object):
     '''
     Zookeeper client wrapper
     '''
-    def __init__(self, host, port):
+    def __init__(self, host, port,scheme='PLAINTEXT'):
         self.host = host
         self.port = port
+        self.scheme=scheme
         self.default_zk_timeout = 3.0
         self.client = KazooClient(hosts=':'.join([host, str(port)]),
                                   timeout=2.01,
                                   max_retries=0,
                                   read_only=True)
-        self._internal_endpoint_regex = re.compile(r'^PLAINTEXT://(.*):([0-9]+)$')
+        self._internal_endpoint_regex = re.compile(r'^{}://(.*):([0-9]+)$'.format(scheme))
 
     def __enter__(self):
         self.client.start(timeout=self.default_zk_timeout)
